@@ -34,18 +34,13 @@ class GameCore {
 
         try {
             menuLoadingText.textContent = 'Načítám 3D scénu...';
-            
             await this.threeD.init();
-            
             menuLoadingText.textContent = 'Inicializuji audio...';
             this.audio.init();
-
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
-
             menuLoadingContainer.style.display = 'none';
             playBtn.disabled = false;
-            
             this.menuLoop();
         } catch (error) {
             console.error("Fatální chyba při inicializaci hry:", error);
@@ -56,13 +51,8 @@ class GameCore {
     setupEventListeners() {
         const addListener = (id, event, handler) => {
             const element = this.ui.elements[id];
-            if (element) {
-                element.addEventListener(event, handler);
-            } else {
-                console.warn(`Element s ID '${id}' nebyl nalezen.`);
-            }
+            if (element) element.addEventListener(event, handler);
         };
-
         addListener('play-btn', 'click', () => this.startGame());
         addListener('restart-btn', 'click', () => this.startGame());
         addListener('menu-btn', 'click', () => {
@@ -91,12 +81,12 @@ class GameCore {
         
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
-        // OPRAVA: Odstraněny nepotřebné stavy pro animace
         this.logic.resetSkills();
         this.threeD.reset();
         this.ui.showScreen('game-screen');
         this.ui.updateSkillUI(this.logic.skills);
         this.ui.updateLives(this.gameState.lives);
+        this.ui.updateCollectibleCount(this.gameState.runStats.collectibles);
         
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
@@ -113,7 +103,6 @@ class GameCore {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
         if (this.gameState.isPaused) return;
-
         const delta = this.threeD.clock.getDelta();
         this.update(delta);
     }
@@ -123,7 +112,6 @@ class GameCore {
         this.ui.updateScore(this.gameState.score);
         this.logic.updatePlayerVerticalPosition(this.gameState, delta, GRAVITY);
         this.logic.updateSkills(delta, () => this.ui.updateSkillUI(this.logic.skills));
-
         const targetX = (this.gameState.lane - 1) * LANE_WIDTH;
         this.threeD.update(this.gameState, targetX, delta);
     }
@@ -131,21 +119,21 @@ class GameCore {
     handleCollision(type, index) {
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
-            if (powerupType === 'life') {
+            if (powerupType === 'life' || powerupType === 'shield') {
                 this.ui.updateLives(this.gameState.lives);
                 this.audio.playSound('powerup_shield');
-                this.ui.showQuote('powerup');
-            } else if (powerupType === 'shield') {
-                this.audio.playSound('powerup_shield');
-                this.ui.showQuote('powerup');
             } else {
                 this.audio.playSound('powerup');
-                this.ui.showQuote('powerup');
                 this.ui.triggerScoreGlow();
             }
+            this.ui.showQuote('powerup');
+        } else if (type === 'collectible') {
+            this.logic.collectCollectible(this.gameState, index, this.threeD.gameObjects);
+            this.audio.playSound('collectible');
+            this.ui.updateCollectibleCount(this.gameState.runStats.collectibles);
+            this.ui.triggerScoreGlow();
         } else if (type === 'obstacle') {
             if (this.gameState.invincibilityTimer > 0) return;
-
             if (this.logic.consumeShield(this.gameState)) {
                 this.audio.playSound('shield_break');
                 this.threeD.triggerShieldBreakEffect();
@@ -156,13 +144,9 @@ class GameCore {
                 flash.classList.add('flash');
                 setTimeout(() => flash.classList.remove('flash'), 500);
                 this.audio.playSound('collision');
-
                 const isGameOver = this.logic.handlePlayerHit(this.gameState);
                 this.ui.updateLives(this.gameState.lives);
-                
-                if (isGameOver) {
-                    this.gameOver();
-                }
+                if (isGameOver) this.gameOver();
             }
         }
     }
@@ -171,7 +155,6 @@ class GameCore {
         if (!this.gameState.isPlaying) return;
         this.gameState.isPlaying = false;
         this.ui.showQuote('gameover');
-        
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
         this.ui.showGameOver(finalStats);
@@ -196,13 +179,9 @@ class GameCore {
                     if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
                         this.doSuperJump();
                         this.lastSwipeUpTime = 0;
-                    } else {
-                        this.doJump();
-                    }
+                    } else this.doJump();
                     this.lastSwipeUpTime = now;
-                } else {
-                    this.doDash();
-                }
+                } else this.doDash();
             }
             this.touchStart = null;
         } else if (type === 'keydown') {
@@ -215,9 +194,7 @@ class GameCore {
                     if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
                         this.doSuperJump();
                         this.lastJumpKeyPressTime = 0;
-                    } else {
-                        this.doJump();
-                    }
+                    } else this.doJump();
                     this.lastJumpKeyPressTime = now;
                     break;
                 case 'ArrowDown': case 'KeyS': event.preventDefault(); this.doDash(); break;
@@ -225,7 +202,6 @@ class GameCore {
         }
     }
 
-    // OPRAVA: Zjednodušená funkce skoku, odstraněn nepotřebný dvojitý skok.
     doJump() {
         if (this.logic.canJump(this.gameState)) {
             this.gameState.playerVelocityY = JUMP_FORCE;
@@ -237,15 +213,12 @@ class GameCore {
     }
 
     doSuperJump() {
-        // Super skok lze provést pouze ze země.
         if (this.logic.canJump(this.gameState) && this.logic.canSuperJump(this.gameState)) {
             this.logic.activateSkill('superJump');
             this.ui.updateSkillUI(this.logic.skills);
-
-            this.gameState.playerVelocityY = JUMP_FORCE * 1.5; // Větší síla pro vyšší skok
-            this.gameState.jumpCount = 1; // Počítá se jako jeden skok
-            this.gameState.isDoingSuperJump = true; // Aktivuje vizuální efekt
-            
+            this.gameState.playerVelocityY = JUMP_FORCE * 1.5;
+            this.gameState.jumpCount = 1;
+            this.gameState.isDoingSuperJump = true;
             this.gameState.runStats.jumps++;
             this.audio.playSound('super_jump');
             this.ui.showQuote('super_jump');

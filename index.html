@@ -2,19 +2,43 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
     <title>Pedrova jízda</title>
-    <meta name="description" content="Procedurální underground runner s vlastním WebGL enginem.">
-    <meta name="theme-color" content="#00AACC">
-    
-    <!-- PWA a Apple meta tagy pro fullscreen aplikaci -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Pedrova jízda">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon.svg">
-    <link rel="icon" href="icon.svg" type="image/svg+xml">
 
+    <!-- Základní meta tagy pro responzivitu a zobrazení na celou obrazovku (včetně notche) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
+    
+    <!-- Popis aplikace pro vyhledávače a PWA -->
+    <meta name="description" content="Procedurální underground runner v pražských stokách.">
+
+    <!-- PWA Manifest - klíčový soubor pro PWA funkčnost -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Barva lišty prohlížeče (status bar) -->
+    <meta name="theme-color" content="#00AACC">
+
+    <!-- ===== iOS / Apple specifické meta tagy ===== -->
+
+    <!-- Povolí spuštění jako fullscreen webová aplikace bez UI prohlížeče -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- Název aplikace, který se zobrazí pod ikonou na domovské obrazovce iOS -->
+    <meta name="apple-mobile-web-app-title" content="Pedrova jízda">
+
+    <!-- Styl status baru na iOS (černý s průsvitností, obsah jde pod něj) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Hlavní ikona pro Apple zařízení ("Přidat na plochu"), doporučený rozměr 180x180 -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+
+    <!-- ===== Standardní favicony pro prohlížeče ===== -->
+
+    <!-- Hlavní ikona jako SVG (preferovaná pro moderní prohlížeče) -->
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <!-- Fallback PNG ikony pro různé účely a starší prohlížeče -->
+    <link rel="icon" type="image/png" sizes="256x256" href="icons/icon-256x256.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    
+    <!-- Odkazy na fonty -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,700;1,400&family=Teko:wght@400;600&display=swap" rel="stylesheet">

@@ -20,10 +20,12 @@ class GameCore {
         this.gameState = null;
         this.animationFrame = null;
         this.touchStart = null;
-        // ZMĚNA: Přidána proměnná pro menu smyčku
         this.menuAnimationFrame = null;
 
-        this.init();
+        // ZMĚNA: Přidány proměnné pro detekci dvojitého stisku/swipu
+        this.lastSwipeUpTime = 0;
+        this.lastJumpKeyPressTime = 0;
+        this.doubleTapDelay = 300; // 300ms okno pro dvojitý stisk
     }
 
     async init() {
@@ -35,7 +37,6 @@ class GameCore {
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
             this.ui.showScreen('main-menu');
-            // ZMĚNA: Spuštění smyčky pro animaci pozadí menu
             this.menuLoop();
         } catch (error) {
             console.error("Fatální chyba při inicializaci hry:", error);
@@ -57,8 +58,8 @@ class GameCore {
         addListener('restart-btn', 'click', () => this.startGame());
         addListener('menu-btn', 'click', () => {
             this.ui.showScreen('main-menu');
-            this.threeD.player.mesh.visible = false; // Schováme hráče při návratu do menu
-            this.menuLoop(); // Znovu spustíme menu animaci
+            this.threeD.player.mesh.visible = false;
+            this.menuLoop();
         });
         addListener('pause-btn', 'click', () => this.togglePause());
         addListener('analyze-run-btn', 'click', () => this.ui.analyzeRun());
@@ -73,16 +74,14 @@ class GameCore {
         }
     }
 
-    /**
-     * Spustí novou hru.
-     */
     startGame() {
-        // ZMĚNA: Zastavení menu smyčky
         if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
         
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
         this.gameState.isDoingTrick = false; 
+        // ZMĚNA: Přidán nový stav pro salto vpřed
+        this.gameState.isDoingFrontFlip = false;
         this.logic.resetSkills();
         this.threeD.reset();
         this.ui.showScreen('game-screen');
@@ -93,16 +92,12 @@ class GameCore {
         this.gameLoop();
     }
     
-    // ZMĚNA: Nová animační smyčka pro menu
     menuLoop() {
         this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
         const delta = this.threeD.clock.getDelta();
         this.threeD.updateMenuBackground(delta);
     }
     
-    /**
-     * Hlavní herní smyčka.
-     */
     gameLoop() {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
@@ -112,9 +107,6 @@ class GameCore {
         this.update(delta);
     }
 
-    /**
-     * Aktualizuje stav hry v každém snímku.
-     */
     update(delta) {
         this.logic.updateScore(this.gameState, delta);
         this.ui.updateScore(this.gameState.score);
@@ -125,9 +117,6 @@ class GameCore {
         this.threeD.update(this.gameState, targetX, delta);
     }
 
-    /**
-     * Zpracovává kolize detekované v 3D modulu.
-     */
     handleCollision(type, index) {
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
@@ -169,12 +158,8 @@ class GameCore {
         }
     }
 
-
-    /**
-     * Ukončí hru a zobrazí statistiky.
-     */
     gameOver() {
-        if (!this.gameState || !this.gameState.isPlaying) return;
+        if (!this.gameState.isPlaying) return;
         this.gameState.isPlaying = false;
         this.ui.showQuote('gameover');
         
@@ -183,9 +168,6 @@ class GameCore {
         this.ui.showGameOver(finalStats);
     }
     
-    /**
-     * Zpracovává vstupy od hráče (klávesnice, dotyk).
-     */
     handleInput(type, event) {
         if (!this.gameState || !this.gameState.isPlaying || this.gameState.isPaused) return;
 
@@ -197,25 +179,45 @@ class GameCore {
             if (!this.touchStart) return;
             const dx = event.changedTouches[0].clientX - this.touchStart.x;
             const dy = event.changedTouches[0].clientY - this.touchStart.y;
-            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) { // Swipe do strany
                 this.gameState.lane = Math.max(0, Math.min(2, this.gameState.lane + (dx > 0 ? 1 : -1)));
             } else if (Math.abs(dy) > 30) {
-                if (dy < 0) this.doJump(); else this.doDash();
+                if (dy < 0) { // Swipe nahoru
+                    // ZMĚNA: Detekce dvojitého swipu
+                    const now = Date.now();
+                    if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
+                        this.doSuperJump();
+                        this.lastSwipeUpTime = 0; // Reset, aby se zamezilo trojitému swipu
+                    } else {
+                        this.doJump();
+                    }
+                    this.lastSwipeUpTime = now;
+                } else { // Swipe dolů
+                    this.doDash();
+                }
             }
             this.touchStart = null;
         } else if (type === 'keydown') {
             switch (event.code) {
                 case 'ArrowLeft': case 'KeyA': this.gameState.lane = Math.max(0, this.gameState.lane - 1); break;
                 case 'ArrowRight': case 'KeyD': this.gameState.lane = Math.min(2, this.gameState.lane + 1); break;
-                case 'ArrowUp': case 'KeyW': case 'Space': event.preventDefault(); this.doJump(); break;
+                case 'ArrowUp': case 'KeyW': case 'Space': 
+                    event.preventDefault();
+                    // ZMĚNA: Detekce dvojitého stisku
+                    const now = Date.now();
+                    if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
+                        this.doSuperJump();
+                        this.lastJumpKeyPressTime = 0; // Reset
+                    } else {
+                        this.doJump();
+                    }
+                    this.lastJumpKeyPressTime = now;
+                    break;
                 case 'ArrowDown': case 'KeyS': event.preventDefault(); this.doDash(); break;
             }
         }
     }
 
-    /**
-     * Provede skok nebo trik.
-     */
     doJump() {
         if (this.logic.canJump(this.gameState)) {
             this.gameState.playerVelocityY = JUMP_FORCE;
@@ -235,9 +237,23 @@ class GameCore {
         }
     }
 
-    /**
-     * Provede rychlý pohyb vpřed (boost).
-     */
+    // ZMĚNA: Nová funkce pro super skok
+    doSuperJump() {
+        // Super skok lze provést pouze ze země
+        if (this.logic.canJump(this.gameState) && this.logic.canSuperJump(this.gameState)) {
+            this.logic.activateSkill('superJump');
+            this.ui.updateSkillUI(this.logic.skills);
+
+            this.gameState.playerVelocityY = JUMP_FORCE * 1.5; // O 50% vyšší skok
+            this.gameState.jumpCount = 1; // Spotřebuje první skok
+            this.gameState.isDoingFrontFlip = true; // Spustí animaci salta
+            
+            this.gameState.runStats.jumps++;
+            this.audio.playSound('super_jump'); // Nový zvukový efekt
+            this.ui.showQuote('super_jump'); // Nová hláška
+        }
+    }
+
     doDash() {
         if (this.logic.canDash(this.gameState)) {
             this.audio.vibrate(75);
@@ -251,9 +267,6 @@ class GameCore {
         }
     }
 
-    /**
-     * Přepne stav pauzy.
-     */
     togglePause() {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.gameState.isPaused = !this.gameState.isPaused;

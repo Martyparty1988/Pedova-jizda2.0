@@ -97,3 +97,39 @@ class GameUI {
 
 export { GameUI };
 
+    getRandomQuote(category) {
+        const quotes = HLASKY_JSON[category];
+        return quotes ? quotes[Math.floor(Math.random() * quotes.length)] : '';
+    }
+
+    showQuote(category) {
+        const text = this.getRandomQuote(category);
+        if (!text) return;
+        const qd = this.elements['quote-display'];
+        const qt = this.elements['quote-text'];
+        qt.textContent = text;
+        qd.classList.add('active');
+        if (this.quoteTimeout) clearTimeout(this.quoteTimeout);
+        this.quoteTimeout = setTimeout(() => {
+            qd.classList.remove('active');
+        }, 3500);
+    }
+
+    analyzeRun() {
+        const btn = this.elements['analyze-run-btn'];
+        btn.disabled = true;
+        btn.style.display = 'none';
+        this.elements['ai-summary-container'].style.display = 'block';
+        this.elements['ai-summary-spinner'].style.display = 'block';
+        this.elements['ai-summary-text'].textContent = '';
+
+        setTimeout(() => {
+            const quote = ANALYSIS_QUOTES[Math.floor(Math.random() * ANALYSIS_QUOTES.length)];
+            this.elements['ai-summary-text'].textContent = quote;
+            this.elements['ai-summary-spinner'].style.display = 'none';
+        }, 1000);
+    }
+}
+
+export { GameUI };
+

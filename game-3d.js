@@ -63,7 +63,6 @@ export class Game3D {
 
     setupWorld() {
         this.player = new Player();
-        // VYLEPŠENÍ: Zajistíme, aby byl hráč vždy viditelný
         this.player.mesh.frustumCulled = false;
         
         this.environment = new Environment();
@@ -77,7 +76,7 @@ export class Game3D {
         this.player.mesh.visible = false;
         
         this.scene.add(this.environment.tunnel);
-        // VYLEPŠENÍ: Přidáme do scény novou viditelnou kostru tunelu
+        // OPRAVA: Přidáme do scény novou viditelnou kostru tunelu
         this.scene.add(this.environment.tunnelWireframe);
         
         this.scene.add(this.environment.floor);
@@ -230,6 +229,10 @@ export class Game3D {
             const startPos = new THREE.Vector3(0, 8, playerPos.z + 12);
             const endPos = new THREE.Vector3(playerPos.x * 0.5, playerPos.y + 3, playerPos.z + 10);
             this.camera.position.lerpVectors(startPos, endPos, progress * progress);
+            
+            // OPRAVA: Donutíme kameru, aby se vždy dívala na hráče
+            this.camera.lookAt(playerPos);
+
             if (progress >= 1) {
                 this.introAnimation.active = false;
             }

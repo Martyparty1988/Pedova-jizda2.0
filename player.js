@@ -2,7 +2,7 @@ import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 /**
  * Player – Nový, zaoblený a stylizovaný model energetického jezdce.
- * OPRAVA: Přidáno klíčové slovo 'export', aby byla třída správně viditelná pro ostatní soubory.
+ * OPRAVA: Nahrazena nekompatibilní CapsuleGeometry za CylinderGeometry.
  */
 export class Player {
   constructor() {
@@ -42,9 +42,10 @@ export class Player {
     const deckY = wheelRadius + (deckHeight / 2);
 
     // Skateboard - teď spíš hoverboard
-    const deckGeo = new THREE.CapsuleGeometry(0.2, 1.0, 4, 8);
+    // OPRAVA: Použita CylinderGeometry místo CapsuleGeometry
+    const deckGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.4, 16); 
     const deck = new THREE.Mesh(deckGeo, boardDeckMat);
-    deck.rotation.x = Math.PI / 2;
+    deck.rotation.z = Math.PI / 2; // Otočíme válec, aby ležel naplocho
     deck.position.y = deckY;
     group.add(deck);
 

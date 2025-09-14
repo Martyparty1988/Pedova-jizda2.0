@@ -6,6 +6,53 @@ import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/j
 import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
+// Tento soubor sice neexistuje, ale pro jednoduchost si třídu definujeme přímo zde
+// import { TrailRenderer } from './TrailRenderer.js'; 
+
+// --- Definice TrailRendereru (normálně by byla v samostatném souboru) ---
+class TrailRenderer {
+    constructor(scene, options) {
+        this.scene = scene;
+        this.options = options || {};
+        this.trailLength = this.options.trailLength || 100;
+        this.trailWidth = this.options.trailWidth || 0.2;
+        this.material = this.options.material || new THREE.MeshBasicMaterial({ color: 0xff007f });
+        this.geometry = new THREE.BufferGeometry();
+        this.positions = new Float32Array(this.trailLength * 3 * 2);
+        this.geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+        this.mesh = new THREE.Mesh(this.geometry, this.material);
+        this.mesh.frustumCulled = false;
+        this.scene.add(this.mesh);
+        this.trailPoints = [];
+    }
+
+    update(targetPosition) {
+        this.trailPoints.push(targetPosition.clone());
+        if (this.trailPoints.length > this.trailLength) {
+            this.trailPoints.shift();
+        }
+
+        for (let i = 0; i < this.trailPoints.length; i++) {
+            const point = this.trailPoints[i];
+            const nextPoint = this.trailPoints[i + 1] || point;
+            const direction = new THREE.Vector3().subVectors(nextPoint, point).normalize();
+            const perpendicular = new THREE.Vector3(direction.z, 0, -direction.x).normalize().multiplyScalar(this.trailWidth / 2);
+
+            const p1 = new THREE.Vector3().addVectors(point, perpendicular);
+            const p2 = new THREE.Vector3().subVectors(point, perpendicular);
+
+            this.positions[i * 6] = p1.x;
+            this.positions[i * 6 + 1] = p1.y;
+            this.positions[i * 6 + 2] = p1.z;
+            this.positions[i * 6 + 3] = p2.x;
+            this.positions[i * 6 + 4] = p2.y;
+            this.positions[i * 6 + 5] = p2.z;
+        }
+
+        this.geometry.attributes.position.needsUpdate = true;
+    }
+}
+
 
 class Game3D {
     constructor(options) {
@@ -14,6 +61,7 @@ class Game3D {
         this.gameObjects = [];
         this.tunnelDetails = [];
         this.lastSpawnZ = 0;
+        this.activeTunnelMaterial = null;
     }
 
     async init() {
@@ -40,19 +88,33 @@ class Game3D {
     }
     
     setupPostProcessing() {
-        const composer = new EffectComposer(this.renderer);
-        composer.addPass(new RenderPass(this.scene, this.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.1);
-        composer.addPass(bloomPass);
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.1);
+        this.composer.addPass(this.bloomPass);
 
-        const customShader = {
-            uniforms: { "tDiffuse": { value: null }, "vignette": { value: 0.9 } },
+        // Shader pro chromatickou aberaci (efekt při Dashi)
+        const chromaticAberrationShader = {
+            uniforms: {
+                "tDiffuse": { value: null },
+                "amount": { value: 0.0 }
+            },
             vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
-            fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; varying vec2 vUv; void main() { vec4 color = texture2D( tDiffuse, vUv ); float vig = 1.0 - smoothstep(0.0, vignette, length(vUv - 0.5)); gl_FragColor = color * vig; }`
+            fragmentShader: `
+                uniform sampler2D tDiffuse;
+                uniform float amount;
+                varying vec2 vUv;
+                void main() {
+                    vec2 offset = amount * (vUv - 0.5);
+                    vec4 r = texture2D(tDiffuse, vUv + offset);
+                    vec4 g = texture2D(tDiffuse, vUv);
+                    vec4 b = texture2D(tDiffuse, vUv - offset);
+                    gl_FragColor = vec4(r.r, g.g, b.b, g.a);
+                }`
         };
-        const shaderPass = new ShaderPass(customShader);
-        composer.addPass(shaderPass);
-        this.composer = composer;
+        this.chromaticAberrationPass = new ShaderPass(chromaticAberrationShader);
+        this.composer.addPass(this.chromaticAberrationPass);
     }
 
     setupWorld() {
@@ -63,6 +125,18 @@ class Game3D {
         this.player = this.createPlayer();
         this.scene.add(this.player);
 
+        this.playerTrail = new TrailRenderer(this.scene, {
+            trailLength: 50,
+            trailWidth: 0.3,
+            material: new THREE.MeshBasicMaterial({ 
+                color: 0xff007f, 
+                blending: THREE.AdditiveBlending, 
+                transparent: true,
+                opacity: 0.5
+            })
+        });
+
+        this.createTunnelMaterials();
         this.tunnel = this.createTunnel();
         this.scene.add(this.tunnel);
 
@@ -72,77 +146,79 @@ class Game3D {
         this.keyLight = new THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
         this.scene.add(this.keyLight);
         this.scene.add(this.keyLight.target);
-
-        this.dustParticles = this.createDustParticles();
-        this.scene.add(this.dustParticles);
     }
     
     createPlayer() {
         const playerGroup = new THREE.Group();
-        const core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 8), new THREE.MeshPhongMaterial({color: 0xffffff, emissive: 0x00BFFF, emissiveIntensity: 3}));
+        const boardMat = new THREE.MeshStandardMaterial({
+            color: 0xcccccc,
+            metalness: 0.9,
+            roughness: 0.4,
+            emissive: 0x00BFFF,
+            emissiveIntensity: 1
+        });
+        const boardGeo = new THREE.BoxGeometry(1.2, 0.1, 2.5);
+        const board = new THREE.Mesh(boardGeo, boardMat);
         
-        const wingLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 1), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.5 }));
-        wingLeft.position.x = -0.7;
-        wingLeft.rotation.z = 0.2;
-        
-        const wingRight = wingLeft.clone();
-        wingRight.position.x = 0.7;
-        wingRight.rotation.z = -0.2;
+        const coreGeo = new THREE.SphereGeometry(0.3, 16, 8);
+        const coreMat = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            emissive: 0xff007f,
+            emissiveIntensity: 4
+        });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.y = 0.3;
 
-        const board = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 2.2), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.95, roughness: 0.4, emissive: 0xaaaaaa, emissiveIntensity: 0.1 }));
-        board.position.y = -0.1;
-        playerGroup.add(core, board, wingLeft, wingRight);
+        playerGroup.add(board, core);
         return playerGroup;
+    }
+
+    createTunnelMaterials() {
+        const concreteTex = this.createProceduralTunnelTexture('concrete');
+        concreteTex.wrapS = concreteTex.wrapT = THREE.RepeatWrapping;
+        this.concreteMaterial = new THREE.MeshStandardMaterial({ map: concreteTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
+
+        const brickTex = this.createProceduralTunnelTexture('brick');
+        brickTex.wrapS = brickTex.wrapT = THREE.RepeatWrapping;
+        this.brickMaterial = new THREE.MeshStandardMaterial({ map: brickTex, side: THREE.BackSide, roughness: 0.9, metalness: 0.1 });
     }
 
     createTunnel() {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
         const tubeGeo = new THREE.TubeGeometry(tubePath, 12, 8, 8, false);
-        const tubeTex = this.createProceduralTunnelTexture();
-        tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping;
-        const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
-        return new THREE.Mesh(tubeGeo, tubeMat);
-    }
-    
-    createDustParticles() {
-        const geometry = new THREE.BufferGeometry();
-        const vertices = [];
-        for (let i = 0; i < 200; i++) {
-            vertices.push(
-                Math.random() * 20 - 10,
-                Math.random() * 10,
-                Math.random() * -200
-            );
-        }
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const material = new THREE.PointsMaterial({ size: 0.05, color: 0x666666 });
-        return new THREE.Points(geometry, material);
+        this.activeTunnelMaterial = this.concreteMaterial;
+        return new THREE.Mesh(tubeGeo, this.activeTunnelMaterial);
     }
 
-    createProceduralTunnelTexture() {
+    createProceduralTunnelTexture(type) {
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 4096;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        for (let i = 0; i < 40000; i++) {
-            const x = Math.random() * canvas.width; const y = Math.random() * canvas.height; const c = Math.floor(Math.random() * 25) + 45;
-            ctx.fillStyle = `rgb(${c},${c},${c})`; ctx.fillRect(x, y, 3, 3);
+        if (type === 'brick') {
+            ctx.fillStyle = '#5a3a3a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#4a2a2a'; ctx.lineWidth = 10;
+            for (let y = 0; y < canvas.height; y += 128) {
+                for (let x = (y % 256 === 0 ? 0 : -256); x < canvas.width; x += 512) {
+                     ctx.strokeRect(x, y, 512, 128);
+                }
+            }
+        } else { // concrete
+            ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < 40000; i++) {
+                const x = Math.random() * canvas.width; const y = Math.random() * canvas.height; const c = Math.floor(Math.random() * 25) + 45;
+                ctx.fillStyle = `rgb(${c},${c},${c})`; ctx.fillRect(x, y, 3, 3);
+            }
+            ctx.strokeStyle = '#282828'; ctx.lineWidth = 30;
+            for (let y = 0; y < canvas.height; y += 512) {
+                ctx.beginPath(); ctx.moveTo(0, y + (Math.random() - 0.5) * 20); ctx.lineTo(canvas.width, y + (Math.random() - 0.5) * 20); ctx.stroke();
+            }
         }
-        ctx.strokeStyle = '#282828'; ctx.lineWidth = 30;
-        for (let y = 0; y < canvas.height; y += 512) {
-            ctx.beginPath(); ctx.moveTo(0, y + (Math.random() - 0.5) * 20); ctx.lineTo(canvas.width, y + (Math.random() - 0.5) * 20); ctx.stroke();
-        }
-        ctx.fillStyle = 'rgba(10, 50, 10, 0.25)';
-        for(let i=0; i<15; i++) { ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 200, 400); }
-        ctx.fillStyle = '#aaa'; ctx.font = '60px Teko'; ctx.globalAlpha = 0.05;
-        ctx.fillText("PEDRO ŽIJE", Math.random() * (canvas.width - 200), Math.random() * canvas.height);
-        ctx.fillText("KDE JE DALŠÍ?", Math.random() * (canvas.width - 200), Math.random() * canvas.height);
-        ctx.globalAlpha = 1.0;
         return new THREE.CanvasTexture(canvas);
     }
     
     reset() {
-        [...this.gameObjects, ...this.tunnelDetails].forEach(o => this.scene.remove(o.mesh));
-        this.gameObjects = []; this.tunnelDetails = []; this.lastSpawnZ = 0;
+        this.gameObjects.forEach(o => this.scene.remove(o.mesh));
+        this.gameObjects = []; 
+        this.lastSpawnZ = 0;
         this.player.position.set(0, -0.6, 0);
         this.camera.position.set(0, 4, 10);
     }
@@ -158,7 +234,7 @@ class Game3D {
         if (this.tunnel.material.map) this.tunnel.material.map.offset.y -= moveZ * 0.005;
         
         this.lastSpawnZ += moveZ;
-        if (this.lastSpawnZ > (600 / gameState.speed)) { this.spawnObject(); this.lastSpawnZ = 0; }
+        if (this.lastSpawnZ > (600 / gameState.speed)) { this.spawnObject(this.activeTunnelMaterial); this.lastSpawnZ = 0; }
 
         this.checkCollisions(gameState);
         this.cleanupObjects(gameState);
@@ -171,34 +247,49 @@ class Game3D {
         this.keyLight.target.position.set(this.player.position.x, this.player.position.y, this.player.position.z - 50);
         this.keyLight.target.updateMatrixWorld();
 
-        this.dustParticles.position.z -= moveZ * 0.5;
-        if (this.dustParticles.position.z < -100) this.dustParticles.position.z += 100;
-        
-        const zone = Math.floor(Math.abs(this.player.position.z) / 200) % 3;
-        const colors = [0x404040, 0x401010, 0x104010];
-        this.ambientLight.color.setHex(colors[zone]);
+        this.playerTrail.update(this.player.position);
+
+        // Efekt při Dashi
+        const dashEffectAmount = this.chromaticAberrationPass.uniforms.amount.value;
+        const targetDashEffect = gameState.isDashing ? 0.015 : 0.0;
+        this.chromaticAberrationPass.uniforms.amount.value += (targetDashEffect - dashEffectAmount) * 0.1;
+
+        // Dynamická změna tunelu
+        const zone = Math.floor(Math.abs(this.player.position.z) / 400);
+        const newMaterial = (zone % 2 === 0) ? this.concreteMaterial : this.brickMaterial;
+        if (this.tunnel.material !== newMaterial) {
+            this.tunnel.material = newMaterial;
+            this.activeTunnelMaterial = newMaterial;
+        }
         
         this.composer.render();
     }
 
-    spawnObject() { (Math.random() > 0.25) ? this.spawnObstacle() : this.spawnPowerup(); }
+    spawnObject(materialType) { (Math.random() > 0.3) ? this.spawnObstacle(materialType) : this.spawnPowerup(); }
 
-    spawnObstacle() {
-        const type = Math.random(); let mesh;
+    spawnObstacle(materialType) {
+        let mesh;
         const zPos = this.player.position.z - 150;
-        if (type < 0.6) {
+        const type = Math.random();
+
+        if (type < 0.5) { // Bariéra
             const lane = Math.floor(Math.random() * 3);
-            const geo = new THREE.BoxGeometry(4 - 1, 8, 2);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, emissive: 0xFFD700, emissiveIntensity: 0.3 });
+            const geo = new THREE.BoxGeometry(4, 2, 0.5);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, metalness: 0.5, emissive: 0xFFD700, emissiveIntensity: 0.2 });
             mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set((lane - 1) * 4, 3, zPos);
-        } else {
+            mesh.position.set((lane - 1) * 4, 0, zPos);
+        } else if (type < 0.8) { // Trubka napříč
             const geo = new THREE.CylinderGeometry(0.5, 0.5, 4 * 3.2, 16);
-            // ZDE BYL PŘEKLEP ('a' místo 'new') -> OPRAVENO
             const mat = new THREE.MeshStandardMaterial({ color: 0x8B4513, metalness: 0.8, roughness: 0.6, emissive: 0xFF0000, emissiveIntensity: 0.5 });
             mesh = new THREE.Mesh(geo, mat);
             mesh.rotation.z = Math.PI / 2;
             mesh.position.set(0, 0, zPos);
+        } else { // Barely
+            const lane = Math.floor(Math.random() * 3) -1;
+            const geo = new THREE.CylinderGeometry(0.8, 0.8, 2, 16);
+            const mat = new THREE.MeshStandardMaterial({ color: 0x556B2F, roughness: 0.8 });
+            mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(lane * 4, -0.6, zPos);
         }
         this.scene.add(mesh);
         this.gameObjects.push({ mesh, type: 'obstacle' });
@@ -207,20 +298,54 @@ class Game3D {
     spawnPowerup() {
         const lane = Math.floor(Math.random() * 3);
         const zPos = this.player.position.z - 150;
-        const geo = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
-        const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x39FF14, emissiveIntensity: 2 });
+        const geo = new THREE.IcosahedronGeometry(0.4, 0);
+        const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x39FF14, emissiveIntensity: 3 });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.rotation.x = Math.PI/2;
-        mesh.position.set((lane - 1) * 4, -0.4, zPos);
+        mesh.position.set((lane - 1) * 4, 0, zPos);
         this.scene.add(mesh);
         this.gameObjects.push({ mesh, type: 'powerup' });
+    }
+    
+    triggerPowerupEffect(position) {
+        const particleCount = 50;
+        const particles = new THREE.BufferGeometry();
+        const posArray = new Float32Array(particleCount * 3);
+        for(let i = 0; i < particleCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 0.5;
+        }
+        particles.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const particleMaterial = new THREE.PointsMaterial({
+            size: 0.1,
+            color: 0x39FF14,
+            blending: THREE.AdditiveBlending,
+            transparent: true
+        });
+        const particleSystem = new THREE.Points(particles, particleMaterial);
+        particleSystem.position.copy(position);
+        this.scene.add(particleSystem);
+
+        // Animace a odstranění efektu
+        let scale = 1;
+        const animate = () => {
+            scale += 0.5;
+            particleSystem.scale.set(scale, scale, scale);
+            particleMaterial.opacity -= 0.02;
+            if (particleMaterial.opacity <= 0) {
+                this.scene.remove(particleSystem);
+                particles.dispose();
+                particleMaterial.dispose();
+            } else {
+                requestAnimationFrame(animate);
+            }
+        };
+        animate();
     }
     
     checkCollisions() {
         this.playerCollider.setFromObject(this.player);
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
-            if (!obj.mesh.visible || Math.abs(obj.mesh.position.z - this.player.position.z) > 3) continue;
+            if (Math.abs(obj.mesh.position.z - this.player.position.z) > 3) continue;
             this.obstacleCollider.setFromObject(obj.mesh);
             if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
                 this.onCollision(obj.type, i);

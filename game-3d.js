@@ -68,7 +68,6 @@ class Game3D {
 
         this.scene.add(this.player.mesh);
         
-        // OPRAVA: Přidáme všechny části prostředí do scény
         this.scene.add(this.environment.tunnel);
         this.scene.add(this.environment.floor);
         this.scene.add(this.environment.floorGrid);
@@ -90,6 +89,9 @@ class Game3D {
         this.player.mesh.position.set(0, 0, 0);
         this.player.mesh.visible = true;
         this.camera.position.set(0, 4, 10);
+        // ZMĚNA: reset rotace hráče po konci hry
+        this.player.mesh.rotation.set(0, 0, 0);
+        this.player.trickRotation = 0;
     }
     
     update(gameState, targetX, delta) {
@@ -97,6 +99,18 @@ class Game3D {
         this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
         this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
         this.player.update();
+
+        // ZMĚNA: Nová logika pro animaci triku (kickflip)
+        if (gameState.isDoingTrick) {
+            const rotationSpeed = 15;
+            this.player.trickRotation += rotationSpeed * delta;
+            this.player.mesh.rotation.x = this.player.trickRotation;
+            if (this.player.trickRotation >= Math.PI * 2) {
+                this.player.trickRotation = 0;
+                this.player.mesh.rotation.x = 0;
+                gameState.isDoingTrick = false;
+            }
+        }
 
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.mesh.position.z -= moveZ;
@@ -118,7 +132,15 @@ class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
 
-        // OPRAVA: Předáváme pozici hráče pro správný update prostředí
+        // ZMĚNA: Vizuální efekt pro Boost (Forsáž)
+        if (gameState.isDashing) {
+            this.player.engine.material.emissiveIntensity = 10;
+            this.player.engine.scale.z = 2.5;
+        } else {
+            this.player.engine.material.emissiveIntensity = 3;
+            this.player.engine.scale.z = 1;
+        }
+
         this.environment.update(moveZ, this.player.mesh.position);
         this.updateGameObjects(delta);
         this.checkCollisions(gameState);
@@ -228,4 +250,3 @@ class Game3D {
 }
 
 export { Game3D };
-

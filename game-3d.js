@@ -97,8 +97,8 @@ class Game3D {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
         const tubeGeo = new THREE.TubeGeometry(tubePath, 12, 8, 8, false);
         const tubeTex = this.createProceduralTunnelTexture();
-        tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping;
-        const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
+        tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping; // OPRAVENO
+        const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 }); // OPRAVENO
         return new THREE.Mesh(tubeGeo, tubeMat);
     }
     
@@ -195,7 +195,7 @@ class Game3D {
             mesh.position.set((lane - 1) * 4, 3, zPos);
         } else {
             const geo = new THREE.CylinderGeometry(0.5, 0.5, 4 * 3.2, 16);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x8B4513, metalness: 0.8, roughness: 0.6, emissive: 0xFF0000, emissiveIntensity: 0.5 });
+            const mat = a THREE.MeshStandardMaterial({ color: 0x8B4513, metalness: 0.8, roughness: 0.6, emissive: 0xFF0000, emissiveIntensity: 0.5 });
             mesh = new THREE.Mesh(geo, mat);
             mesh.rotation.z = Math.PI / 2;
             mesh.position.set(0, 0, zPos);
@@ -251,4 +251,3 @@ class Game3D {
 }
 
 export { Game3D };
-

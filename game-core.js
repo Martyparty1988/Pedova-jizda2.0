@@ -75,7 +75,6 @@ class GameCore {
         this.gameState = this.logic.getInitialGameState();
         this.logic.resetSkills();
         this.threeD.reset();
-        // OPRAVA: Nahrazeno volání neexistující funkce `prepareForGame`
         this.ui.showScreen('game-screen');
         this.ui.updateSkillUI(this.logic.skills);
         
@@ -118,9 +117,10 @@ class GameCore {
             this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
             this.audio.playSound('powerup');
             this.ui.showQuote('powerup');
-            // OPRAVA: Přejmenováno z glowScore na triggerScoreGlow
             this.ui.triggerScoreGlow();
             this.audio.vibrate(50);
+            // Spuštění nového vizuálního efektu pro power-up
+            this.threeD.triggerPowerupEffect(this.threeD.player.position);
         }
     }
 
@@ -129,6 +129,12 @@ class GameCore {
      */
     gameOver() {
         if (!this.gameState.isPlaying) return;
+
+        // Spuštění CSS animace pro červený záblesk
+        const flash = document.getElementById('collision-flash');
+        flash.classList.add('flash');
+        setTimeout(() => flash.classList.remove('flash'), 500);
+
         this.audio.vibrate([100, 50, 100]);
         this.gameState.isPlaying = false;
         this.audio.playSound('collision');
@@ -136,7 +142,6 @@ class GameCore {
         
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
-        // OPRAVA: Přejmenováno z showGameOverScreen na showGameOver
         this.ui.showGameOver(finalStats);
     }
     
@@ -213,7 +218,6 @@ class GameCore {
     togglePause() {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.gameState.isPaused = !this.gameState.isPaused;
-        // OPRAVA: Přejmenováno z togglePauseButton na togglePause
         this.ui.togglePause(this.gameState.isPaused);
     }
 }

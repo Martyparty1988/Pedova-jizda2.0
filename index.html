@@ -2,13 +2,13 @@
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
-    <title>Cyber Jízda</title>
+    <title>Pedrova jízda</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Nekonečná jízda kybernetickým tunelem.">
+    <meta name="description" content="Procedurální underground runner v pražských stokách.">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00AACC">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Cyber Jízda">
+    <meta name="apple-mobile-web-app-title" content="Pedrova jízda">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
@@ -26,26 +26,28 @@
 
     <div id="loading-screen" class="screen">
         <div class="glass-panel">
-            <h1 class="cyber-title">CYBER JÍZDA</h1>
+            <h1 class="cyber-title">PEDROVA JÍZDA</h1>
             <div class="loading-spinner"></div>
-            <div class="loading-text" id="loading-text">Načítám prostředí...</div>
+            <div class="loading-text" id="loading-text">Hledám žílu...</div>
         </div>
     </div>
 
     <div id="main-menu" class="screen active">
         <div class="menu-content">
             <div class="title-glitch-wrapper">
-                <h1 class="cyber-title menu-title" data-text="CYBER JÍZDA">CYBER JÍZDA</h1>
+                <h1 class="cyber-title menu-title" data-text="PEDROVA JÍZDA">PEDROVA JÍZDA</h1>
             </div>
-            <p class="menu-subtitle">Cesta nikdy nekončí.</p>
+            <!-- OPRAVA: Vrácen původní podtitul -->
+            <p class="menu-subtitle">STOKY VOLAJÍ</p>
             
             <div id="menu-loading-container" class="menu-loading-container">
                 <div class="loading-spinner" id="menu-loading-spinner"></div>
                 <div class="loading-text" id="menu-loading-text"></div>
             </div>
 
+            <!-- OPRAVA: Vrácen původní text tlačítka -->
             <button class="cyber-btn menu-play-btn" id="play-btn" disabled>
-                <span>▶️ START</span>
+                <span>💉 DÁT SI</span>
             </button>
         </div>
     </div>
@@ -72,43 +74,43 @@
             <p id="game-over-quote" class="game-over-quote"></p>
             
             <div class="final-score-container">
-                <div class="final-score-label">FINÁLNÍ SKÓRE</div>
+                <div class="final-score-label">DOSAŽENÉ SKÓRE</div>
                 <div class="final-score" id="final-score">0</div>
             </div>
 
             <div class="stats-grid" id="stats-grid">
                 <div class="stat-item">
-                    <div class="stat-label">🏆 NEJLEPŠÍ SKÓRE</div>
+                    <div class="stat-label">Nejlepší trip</div>
                     <div class="stat-value" id="best-score">0</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">⏱️ ČAS JÍZDY</div>
+                    <div class="stat-label">Doba jízdy</div>
                     <div class="stat-value" id="game-time">0s</div>
                 </div>
             </div>
 
             <div id="ai-summary-container" class="ai-summary-container">
-                <h3 class="ai-summary-title">📈 ANALÝZA JÍZDY</h3>
+                <h3 class="ai-summary-title">ZHODNOCENÍ JÍZDY</h3>
                 <div id="ai-summary-spinner" class="loading-spinner"></div>
                 <p id="ai-summary-text"></p>
             </div>
 
             <div class="menu-buttons">
                 <button class="cyber-btn" id="restart-btn">🔄 Zkusit to znovu</button>
-                <button class="cyber-btn" id="analyze-run-btn">✍️ Zobrazit analýzu</button>
-                <button class="cyber-btn" id="menu-btn">🏠 ZPĚT DO MENU</button>
+                <button class="cyber-btn" id="analyze-run-btn">✍️ Zobrazit hodnocení</button>
+                <button class="cyber-btn" id="menu-btn">🏠 Zpátky na ulici</button>
             </div>
         </div>
     </div>
     
     <div class="webgl-fallback" id="webgl-fallback">
         <div class="glass-panel">
-            <h2 style="color:var(--junkie-magenta)">CHYBA GRAFIKY</h2>
-            <p>Tvůj prohlížeč nebo zařízení nepodporuje WebGL, které je pro hru nezbytné.</p>
+            <h2 style="color:var(--junkie-magenta)">Motor selhal</h2>
+            <p>Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
             <ul>
-                <li>Zkus aktualizovat svůj prohlížeč na nejnovější verzi.</li>
-                <li>V nastavení prohlížeče zkontroluj, zda je povolena "Hardwarová akcelerace".</li>
-                <li>Ujisti se, že máš aktuální ovladače grafické karty.</li>
+                <li>Zkus to restartovat (aktualizuj prohlížeč).</li>
+                <li>Šáhni do nastavení a zapni "Hardwarovou akceleraci".</li>
+                <li>Možná máš starý matroš (ovladače grafiky).</li>
             </ul>
         </div>
     </div>
@@ -116,3 +118,4 @@
     <script type="module" src="main.js"></script>
 </body>
 </html>
+

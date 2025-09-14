@@ -1,3 +1,5 @@
+// game-3d.js
+
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { Reflector } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/objects/Reflector.js';
 import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
@@ -97,8 +99,8 @@ class Game3D {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
         const tubeGeo = new THREE.TubeGeometry(tubePath, 12, 8, 8, false);
         const tubeTex = this.createProceduralTunnelTexture();
-        tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping; // OPRAVENO
-        const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 }); // OPRAVENO
+        tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping;
+        const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
         return new THREE.Mesh(tubeGeo, tubeMat);
     }
     
@@ -116,7 +118,6 @@ class Game3D {
         const material = new THREE.PointsMaterial({ size: 0.05, color: 0x666666 });
         return new THREE.Points(geometry, material);
     }
-
 
     createProceduralTunnelTexture() {
         const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 4096;
@@ -170,11 +171,9 @@ class Game3D {
         this.keyLight.target.position.set(this.player.position.x, this.player.position.y, this.player.position.z - 50);
         this.keyLight.target.updateMatrixWorld();
 
-        // Animate dust
         this.dustParticles.position.z -= moveZ * 0.5;
         if (this.dustParticles.position.z < -100) this.dustParticles.position.z += 100;
         
-        // Dynamic light zones
         const zone = Math.floor(Math.abs(this.player.position.z) / 200) % 3;
         const colors = [0x404040, 0x401010, 0x104010];
         this.ambientLight.color.setHex(colors[zone]);
@@ -195,7 +194,8 @@ class Game3D {
             mesh.position.set((lane - 1) * 4, 3, zPos);
         } else {
             const geo = new THREE.CylinderGeometry(0.5, 0.5, 4 * 3.2, 16);
-            const mat = a THREE.MeshStandardMaterial({ color: 0x8B4513, metalness: 0.8, roughness: 0.6, emissive: 0xFF0000, emissiveIntensity: 0.5 });
+            // ZDE BYL PŘEKLEP ('a' místo 'new') -> OPRAVENO
+            const mat = new THREE.MeshStandardMaterial({ color: 0x8B4513, metalness: 0.8, roughness: 0.6, emissive: 0xFF0000, emissiveIntensity: 0.5 });
             mesh = new THREE.Mesh(geo, mat);
             mesh.rotation.z = Math.PI / 2;
             mesh.position.set(0, 0, zPos);
@@ -220,7 +220,7 @@ class Game3D {
         this.playerCollider.setFromObject(this.player);
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
-            if (Math.abs(obj.mesh.position.z - this.player.position.z) > 3) continue;
+            if (!obj.mesh.visible || Math.abs(obj.mesh.position.z - this.player.position.z) > 3) continue;
             this.obstacleCollider.setFromObject(obj.mesh);
             if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
                 this.onCollision(obj.type, i);

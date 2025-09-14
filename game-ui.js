@@ -1,3 +1,5 @@
+// game-ui.js
+
 import { ANALYSIS_QUOTES, HLASKY_JSON } from './game-assets.js';
 
 class GameUI {
@@ -8,8 +10,23 @@ class GameUI {
     }
 
     getDOMElements() {
-        const ids = ['loading-screen', 'main-menu', 'game-screen', 'game-over', 'play-btn', 'restart-btn', 'menu-btn', 'current-score', 'final-score', 'best-score', 'game-time', 'pause-btn', 'skill-doubleJump', 'skill-dash', 'loading-text', 'ai-summary-container', 'ai-summary-spinner', 'ai-summary-text', 'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 'webgl-fallback'];
-        ids.forEach(id => this.elements[id] = document.getElementById(id));
+        // OPRAVA: Přidáno chybějící ID 'game-canvas' do seznamu
+        const ids = [
+            'loading-screen', 'main-menu', 'game-screen', 'game-over', 'play-btn', 
+            'restart-btn', 'menu-btn', 'current-score', 'final-score', 'best-score', 
+            'game-time', 'pause-btn', 'skill-doubleJump', 'skill-dash', 'loading-text', 
+            'ai-summary-container', 'ai-summary-spinner', 'ai-summary-text', 
+            'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 
+            'webgl-fallback', 'game-canvas' 
+        ];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                this.elements[id] = el;
+            } else {
+                console.warn(`UI prvek s ID '${id}' nebyl v HTML nalezen.`);
+            }
+        });
     }
     
     showScreen(id) {
@@ -25,13 +42,17 @@ class GameUI {
     }
 
     updateScore(score) {
-        this.elements['current-score'].textContent = score;
+        if (this.elements['current-score']) {
+            this.elements['current-score'].textContent = score;
+        }
     }
 
     triggerScoreGlow() {
         const scoreEl = this.elements['current-score'];
-        scoreEl.classList.add('glowing');
-        setTimeout(() => scoreEl.classList.remove('glowing'), 400);
+        if (scoreEl) {
+            scoreEl.classList.add('glowing');
+            setTimeout(() => scoreEl.classList.remove('glowing'), 400);
+        }
     }
     
     showGameOver(stats) {
@@ -55,7 +76,9 @@ class GameUI {
     }
 
     togglePause(isPaused) {
-        this.elements['pause-btn'].innerHTML = isPaused ? '▶' : '||';
+        if (this.elements['pause-btn']) {
+            this.elements['pause-btn'].innerHTML = isPaused ? '▶' : '||';
+        }
     }
 
     showQuote(category) { 
@@ -65,11 +88,13 @@ class GameUI {
         const quoteDisplay = this.elements['quote-display'];
         const quoteText = this.elements['quote-text'];
         
-        quoteText.textContent = text; 
-        quoteDisplay.classList.add('active'); 
-        
-        if (this.quoteTimeout) clearTimeout(this.quoteTimeout); 
-        this.quoteTimeout = setTimeout(() => { quoteDisplay.classList.remove('active'); }, 3500); 
+        if (quoteDisplay && quoteText) {
+            quoteText.textContent = text; 
+            quoteDisplay.classList.add('active'); 
+            
+            if (this.quoteTimeout) clearTimeout(this.quoteTimeout); 
+            this.quoteTimeout = setTimeout(() => { quoteDisplay.classList.remove('active'); }, 3500); 
+        }
     }
 
     getRandomQuote(category) {
@@ -95,4 +120,3 @@ class GameUI {
 }
 
 export { GameUI };
-

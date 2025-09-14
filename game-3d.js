@@ -18,6 +18,10 @@ class Game3D {
         this.lastSpawnZ = 0;
         this.currentZone = 'aurora';
         this.zoneLength = 2000;
+        this.effects = {
+            dashParticles: [],
+            flipTrail: []
+        };
     }
 
     async init() {
@@ -44,6 +48,8 @@ class Game3D {
     }
     
     setupPostProcessing() {
+        // ... (beze změny)
+// ... existing code ...
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.camera));
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.1);
@@ -85,6 +91,8 @@ class Game3D {
     }
     
     reset() {
+        // ... (beze změny)
+// ... existing code ...
         [...this.gameObjects].forEach(o => this.scene.remove(o.mesh));
         this.gameObjects = [];
         this.lastSpawnZ = 0;
@@ -93,13 +101,14 @@ class Game3D {
         this.camera.position.set(0, 4, 10);
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
-        // ZMĚNA: Reset pro novou animaci
         this.player.frontFlipRotation = 0;
         this.currentZone = 'aurora';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
     
     updateMenuBackground(delta) {
+        // ... (beze změny)
+// ... existing code ...
         this.camera.position.z -= delta * 5;
         this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
         this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
@@ -112,41 +121,45 @@ class Game3D {
     update(gameState, targetX, delta) {
         this.player.mesh.position.y = gameState.playerY;
         this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
-        // ZMĚNA: Původní rotaci do stran při pohybu neaplikujeme během salta
+        
         if (!gameState.isDoingFrontFlip) {
-            this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
+            this.player.mesh.rotation.z = (this.player.mesh.position.x - targetX) * 0.1;
         }
-        this.player.update();
+        this.player.update(delta, gameState.isDashing);
 
         // Animace triku (barrel roll)
         if (gameState.isDoingTrick) {
             const rotationSpeed = 15;
             this.player.trickRotation += rotationSpeed * delta;
-            this.player.mesh.rotation.z = this.player.trickRotation; // Rotace kolem Z osy
+            this.player.mesh.rotation.y = this.player.trickRotation; // Změna na Y osu pro boční postoj
             if (this.player.trickRotation >= Math.PI * 2) {
                 this.player.trickRotation = 0;
-                this.player.mesh.rotation.z = 0;
+                this.player.mesh.rotation.y = 0;
                 gameState.isDoingTrick = false;
             }
         }
         
-        // ZMĚNA: Nová animace pro salto vpřed
+        // VYLEPŠENÍ: Animace salta se světelnou stopou
         if (gameState.isDoingFrontFlip) {
             const rotationSpeed = 10;
             this.player.frontFlipRotation += rotationSpeed * delta;
-            this.player.mesh.rotation.x = this.player.frontFlipRotation; // Rotace kolem X osy
-            // Salto se ukončí, až když hráč dopadne
-            if (this.player.frontFlipRotation >= Math.PI * 2 && gameState.playerY <= -0.6) {
+            this.player.mesh.rotation.z = -this.player.frontFlipRotation; // Změna na Z osu
+            
+            // Přidání části stopy
+            this.spawnFlipTrailPart();
+
+            if (this.player.frontFlipRotation >= Math.PI * 2 && gameState.playerY <= 0.1) {
                 this.player.frontFlipRotation = 0;
-                this.player.mesh.rotation.x = 0;
+                this.player.mesh.rotation.z = 0;
                 gameState.isDoingFrontFlip = false;
             }
         }
 
-
-        const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
+        const moveZ = gameState.speed * delta * (gameState.isDashing ? 2.5 : 1);
         this.player.mesh.position.z -= moveZ;
         
+        // ... (zbytek logiky zón beze změny)
+// ... existing code ...
         const distance = Math.abs(this.player.mesh.position.z);
         const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
         const zones = ['aurora', 'sunset', 'matrix'];
@@ -174,14 +187,14 @@ class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
 
+        // VYLEPŠENÍ: Efekt jisker při skluzu
         if (gameState.isDashing) {
-            this.player.activateBoost();
-        } else {
-            this.player.deactivateBoost();
+            this.spawnDashParticles();
         }
 
         this.environment.update(moveZ, this.player.mesh.position);
         this.updateGameObjects(delta);
+        this.updateEffects(delta);
         this.checkCollisions(gameState);
         this.cleanupObjects(gameState);
         this.updateCameraAndLights();
@@ -189,7 +202,81 @@ class Game3D {
         this.composer.render();
     }
     
+    // VYLEPŠENÍ: Nové funkce pro správu efektů
+    spawnDashParticles() {
+        const particleCount = 2;
+        const wheelPositions = [-0.5, 0.5]; // Z pozice kol
+
+        for (let i = 0; i < particleCount; i++) {
+            const geo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xFFD700 });
+            const particle = new THREE.Mesh(geo, mat);
+            
+            const playerPos = this.player.mesh.position;
+            const wheelZ = wheelPositions[i % 2];
+            
+            particle.position.set(
+                playerPos.x,
+                playerPos.y + 0.1, // Lehce nad zemí
+                playerPos.z + wheelZ
+            );
+            
+            particle.userData.life = 0.3; // Doba života v sekundách
+            particle.userData.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                (Math.random() - 0.5) * 2,
+                Math.random() * 3 + 2 // Směrem dozadu
+            );
+            
+            this.scene.add(particle);
+            this.effects.dashParticles.push(particle);
+        }
+    }
+
+    spawnFlipTrailPart() {
+        const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+        const mat = new THREE.MeshBasicMaterial({ 
+            color: 0x8A2BE2, 
+            transparent: true, 
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending 
+        });
+        const part = new THREE.Mesh(geo, mat);
+        part.position.copy(this.player.mesh.position);
+        part.userData.life = 0.5;
+        this.scene.add(part);
+        this.effects.flipTrail.push(part);
+    }
+    
+    updateEffects(delta) {
+        // Aktualizace jisker
+        for (let i = this.effects.dashParticles.length - 1; i >= 0; i--) {
+            const p = this.effects.dashParticles[i];
+            p.userData.life -= delta;
+            if (p.userData.life <= 0) {
+                this.scene.remove(p);
+                this.effects.dashParticles.splice(i, 1);
+            } else {
+                p.position.add(p.userData.velocity.clone().multiplyScalar(delta));
+                p.scale.multiplyScalar(1 - delta * 3);
+            }
+        }
+        // Aktualizace stopy salta
+        for (let i = this.effects.flipTrail.length - 1; i >= 0; i--) {
+            const p = this.effects.flipTrail[i];
+            p.userData.life -= delta;
+            if (p.userData.life <= 0) {
+                this.scene.remove(p);
+                this.effects.flipTrail.splice(i, 1);
+            } else {
+                p.material.opacity = p.userData.life / 0.5;
+            }
+        }
+    }
+
     updateGameObjects(delta) {
+        // ... (beze změny)
+// ... existing code ...
         for (const obj of this.gameObjects) {
             if (obj.movement) {
                 obj.mesh.position.x += obj.movement.speed * delta * obj.movement.direction;
@@ -201,6 +288,8 @@ class Game3D {
     }
 
     updateCameraAndLights() {
+        // ... (beze změny)
+// ... existing code ...
         const playerPos = this.player.mesh.position;
         this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
         this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
@@ -212,6 +301,8 @@ class Game3D {
     }
 
     triggerShieldBreakEffect() {
+        // ... (beze změny)
+// ... existing code ...
         if (!this.shield) return;
         const initialScale = 1;
         this.shield.scale.set(initialScale, initialScale, initialScale);
@@ -231,6 +322,8 @@ class Game3D {
     }
 
     spawnObject() { 
+        // ... (beze změny)
+// ... existing code ...
         const rand = Math.random();
         const zPos = this.player.mesh.position.z - 150;
         let newObject;
@@ -252,6 +345,8 @@ class Game3D {
     }
     
     checkCollisions(gameState) {
+        // ... (beze změny)
+// ... existing code ...
         if (!this.player.mesh.visible) return;
         this.playerCollider.setFromObject(this.player.mesh);
 
@@ -267,6 +362,8 @@ class Game3D {
     }
     
     cleanupObjects(gameState) {
+        // ... (beze změny)
+// ... existing code ...
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
             if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
@@ -288,6 +385,8 @@ class Game3D {
     }
 
     onWindowResize() {
+        // ... (beze změny)
+// ... existing code ...
         if (!this.camera || !this.renderer) return;
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();

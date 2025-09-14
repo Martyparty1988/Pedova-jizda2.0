@@ -15,6 +15,7 @@ class Game3D {
     }
 
     async init() {
+        this.textureLoader = new THREE.TextureLoader();
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
         this.camera.position.set(0, 4, 10);
@@ -34,7 +35,7 @@ class Game3D {
         this.renderer.setClearColor(0x000000, 0);
 
         this.setupPostProcessing();
-        this.setupWorld();
+        await this.setupWorld(); // Změna: setupWorld je nyní asynchronní
     }
     
     setupPostProcessing() {
@@ -53,14 +54,14 @@ class Game3D {
         this.composer = composer;
     }
 
-    setupWorld() {
+    async setupWorld() {
         this.scene.fog = new THREE.Fog(0x101015, 15, 80);
         this.scene.add(new THREE.AmbientLight(0x404040, 2.5));
 
         this.player = this.createPlayer();
         this.scene.add(this.player);
 
-        this.tunnel = this.createTunnel();
+        this.tunnel = await this.createTunnel(); // Změna: createTunnel je nyní asynchronní
         this.scene.add(this.tunnel);
 
         this.floor = new Reflector(new THREE.PlaneGeometry(30, 200), { clipBias: 0.003, textureWidth: window.innerWidth * window.devicePixelRatio, textureHeight: window.innerHeight * window.devicePixelRatio, color: 0x222222 });
@@ -82,13 +83,31 @@ class Game3D {
         return playerGroup;
     }
 
-    createTunnel() {
+    async createTunnel() {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
         const tubeGeo = new THREE.TubeGeometry(tubePath, 12, 8, 8, false);
-        const tubeTex = this.createTunnelTexture();
+        const tubeTex = await this.loadTunnelTexture(); // Změna: Načtení externí textury
         tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping;
         const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
         return new THREE.Mesh(tubeGeo, tubeMat);
+    }
+
+    // Nová funkce pro načtení SVG jako textury
+    async loadTunnelTexture() {
+        return new Promise((resolve, reject) => {
+            this.textureLoader.load(
+                'bg-tunnel.svg',
+                (texture) => {
+                    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                    resolve(texture);
+                },
+                undefined,
+                (error) => {
+                    console.error('Chyba při načítání textury tunelu:', error);
+                    reject(error);
+                }
+            );
+        });
     }
 
     createTunnelLights() {
@@ -101,27 +120,6 @@ class Game3D {
             lights.push(light);
         }
         return lights;
-    }
-
-    createTunnelTexture() {
-        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 4096;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, 0, 1024, 4096);
-        for (let i = 0; i < 40000; i++) {
-            const x = Math.random() * 1024; const y = Math.random() * 4096; const c = Math.floor(Math.random() * 25) + 45;
-            ctx.fillStyle = `rgb(${c},${c},${c})`; ctx.fillRect(x, y, 3, 3);
-        }
-        ctx.strokeStyle = '#282828'; ctx.lineWidth = 30;
-        for (let y = 0; y < 4096; y += 512) {
-            ctx.beginPath(); ctx.moveTo(0, y + (Math.random() - 0.5) * 20); ctx.lineTo(1024, y + (Math.random() - 0.5) * 20); ctx.stroke();
-        }
-        ctx.fillStyle = 'rgba(10, 50, 10, 0.25)';
-        for(let i=0; i<15; i++) { ctx.fillRect(Math.random()*1024, Math.random()*4096, 200, 400); }
-        ctx.fillStyle = '#aaa'; ctx.font = '60px Teko'; ctx.globalAlpha = 0.05;
-        ctx.fillText("PEDRO ŽIJE", Math.random() * 600, Math.random() * 4096);
-        ctx.fillText("KDE JE DALŠÍ?", Math.random() * 600, Math.random() * 4096);
-        ctx.globalAlpha = 1.0;
-        return new THREE.CanvasTexture(canvas);
     }
     
     reset() {
@@ -144,7 +142,9 @@ class Game3D {
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.position.z -= moveZ;
         
-        this.tunnel.material.map.offset.y -= moveZ * 0.005;
+        if (this.tunnel.material.map) {
+            this.tunnel.material.map.offset.y -= moveZ * 0.005;
+        }
         
         this.lastSpawnZ += moveZ;
         if (this.lastSpawnZ > (600 / gameState.speed)) {
@@ -183,7 +183,7 @@ class Game3D {
         if (type < 0.6) {
             const lane = Math.floor(Math.random() * 3);
             const geo = new THREE.BoxGeometry(4 - 1, 8, 2);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, map: this.createTunnelTexture(), emissive: 0xFFD700, emissiveIntensity: 0.3 });
+            const mat = new THREE.MeshStandardMaterial({ color: 0x808080, roughness: 0.9, emissive: 0xFFD700, emissiveIntensity: 0.3 });
             mesh = new THREE.Mesh(geo, mat);
             mesh.position.set((lane - 1) * 4, 3, zPos);
         } else {
@@ -216,10 +216,7 @@ class Game3D {
             if (Math.abs(obj.mesh.position.z - this.player.position.z) > 3) continue;
             this.obstacleCollider.setFromObject(obj.mesh);
             if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
-                this.onCollision(obj.type);
-                if (obj.type === 'powerup') {
-                    this.onPowerup(i);
-                }
+                this.onCollision(obj.type, i);
             }
         }
     }

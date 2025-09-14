@@ -1,6 +1,6 @@
 import { ANALYSIS_QUOTES, HLASKY_JSON } from './game-assets.js';
 
-class GameUI {
+export class GameUI {
     constructor() {
         this.elements = {};
         this.getDOMElements();
@@ -17,12 +17,13 @@ class GameUI {
             'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 
             'webgl-fallback', 'game-canvas', 'lives-container',
             'menu-loading-container', 'menu-loading-spinner', 'menu-loading-text',
-            // Přidáno pro počítadlo předmětů
-            'collectible-count'
+            // OPRAVA: Přidáno ID pro počítadlo předmětů
+            'collectible-count' 
         ];
         ids.forEach(id => {
             const el = document.getElementById(id);
             if (el) this.elements[id] = el;
+            else console.warn(`UI prvek s ID '${id}' nebyl v HTML nalezen.`);
         });
     }
     
@@ -32,19 +33,17 @@ class GameUI {
             this.scoreAnimationInterval = null;
         }
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        if (this.elements[id]) {
-            this.elements[id].classList.add('active');
-        }
+        if (this.elements[id]) this.elements[id].classList.add('active');
     }
-    
+
     updateScore(score) {
         if (this.elements['current-score']) {
             this.elements['current-score'].textContent = score;
         }
     }
     
-    // Nová funkce pro aktualizaci počítadla předmětů
-    updateCollectibleCount(count) {
+    // OPRAVA: Přidána chybějící funkce
+    updateCollectibles(count) {
         if (this.elements['collectible-count']) {
             this.elements['collectible-count'].textContent = count;
         }
@@ -91,6 +90,7 @@ class GameUI {
             if (currentScore >= targetScore) {
                 currentScore = targetScore;
                 clearInterval(this.scoreAnimationInterval);
+                this.scoreAnimationInterval = null;
             }
             finalScoreEl.textContent = Math.floor(currentScore);
         }, 16);
@@ -98,8 +98,9 @@ class GameUI {
     
     updateSkillUI(skills) {
         for (const [skillName, skillData] of Object.entries(skills)) {
-            const el = document.getElementById(`skill-${skillName}`);
+            const el = this.elements[`skill-${skillName}`];
             if (!el) continue;
+            // Zjednodušení logiky, protože 'doubleJump' již nepoužíváme
             el.classList.toggle('unlocked', skillData.unlocked);
             el.classList.toggle('cooldown', skillData.cooldown > 0);
         }
@@ -108,6 +109,7 @@ class GameUI {
     updateLives(livesCount) {
         const container = this.elements['lives-container'];
         if (!container) return;
+        
         container.innerHTML = '';
         for (let i = 0; i < livesCount; i++) {
             const lifeIcon = document.createElement('div');
@@ -125,12 +127,15 @@ class GameUI {
 
     showQuote(category) { 
         const text = this.getRandomQuote(category);
-        if (!text) return;
+        if (!text) return; 
+        
         const quoteDisplay = this.elements['quote-display'];
         const quoteText = this.elements['quote-text'];
+        
         if (quoteDisplay && quoteText) {
             quoteText.textContent = text; 
             quoteDisplay.classList.add('active'); 
+            
             if (this.quoteTimeout) clearTimeout(this.quoteTimeout); 
             this.quoteTimeout = setTimeout(() => { quoteDisplay.classList.remove('active'); }, 3500); 
         }
@@ -149,6 +154,7 @@ class GameUI {
         
         btn.disabled = true;
         btn.style.display = 'none';
+
         container.style.display = 'block';
         container.classList.add('active');
         spinner.style.display = 'block';
@@ -162,4 +168,3 @@ class GameUI {
     }
 }
 
-export { GameUI };

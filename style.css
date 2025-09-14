@@ -299,3 +299,33 @@ body { font-family: 'Rajdhani', sans-serif; font-weight: 500; color: var(--text-
         transform: translateY(0);
     }
 }
+/* ... (předchozí obsah souboru) ... */
+
+/* ZMĚNA: Nové styly pro integrované načítání v hlavním menu */
+.menu-loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+    width: 100%;
+}
+.menu-loading-container .loading-spinner {
+    width: 50px;
+    height: 50px;
+    margin: 0;
+}
+.menu-loading-container .loading-text {
+    margin-top: 0;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

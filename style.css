@@ -15,6 +15,27 @@
 html, body { width: 100%; height: 100%; overflow: hidden; position: fixed; background: var(--dark-concrete); }
 body { font-family: 'Rajdhani', sans-serif; font-weight: 500; color: var(--text-cyber); }
 
+/* STYL PRO EFEKT KOLIZE */
+#collision-flash {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 0, 0, 0.8);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 9999;
+}
+@keyframes flash-animation {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
+.flash {
+    animation: flash-animation 0.5s ease-out;
+}
+
+
 .screen {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -153,4 +174,3 @@ body { font-family: 'Rajdhani', sans-serif; font-weight: 500; color: var(--text-
 .webgl-fallback.active { display: flex; }
 .webgl-fallback p { margin-top: 15px; line-height: 1.6; color: var(--text-dim); }
 .webgl-fallback ul { text-align: left; margin: 20px auto; max-width: 350px; color: var(--text-dim); }
-

@@ -10,7 +10,7 @@ import { GameObjectFactory } from './gameObjectFactory.js';
 
 const LANE_WIDTH = 4;
 
-class Game3D {
+export class Game3D {
     constructor(options) {
         this.canvas = options.canvas;
         this.onCollision = options.onCollision;
@@ -19,13 +19,17 @@ class Game3D {
         this.currentZone = 'aurora';
         this.zoneLength = 2000;
         this.trailPoints = [];
+
+        // VYLEPŠENÍ: Inicializace stavu pro úvodní animaci kamery
+        this.introAnimation = { active: false, timer: 0, duration: 1.5 };
     }
 
     async init() {
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
-        this.camera.position.set(0, 4, 10);
         this.clock = new THREE.Clock();
+        
+        // VYLEPŠENÍ: Vytvoříme si vlastní, menší hitbox pro hráče
         this.playerCollider = new THREE.Box3();
         this.obstacleCollider = new THREE.Box3();
 
@@ -101,12 +105,15 @@ class Game3D {
         this.lastSpawnZ = 0;
         this.player.mesh.position.set(0, 0, 0);
         this.player.mesh.visible = true;
-        this.camera.position.set(0, 4, 10);
         this.player.mesh.rotation.set(0, 0, 0);
         this.currentZone = 'aurora';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
         this.trail.geometry.setIndex([]);
         this.trail.geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+
+        // VYLEPŠENÍ: Aktivujeme úvodní animaci kamery
+        this.introAnimation.active = true;
+        this.introAnimation.timer = 0;
     }
     
     updateMenuBackground(delta) {
@@ -164,14 +171,14 @@ class Game3D {
         
         this.environment.update(moveZ, this.player.mesh.position, delta);
         this.updateGameObjects(delta);
-        this.checkCollisions(gameState);
+        this.checkCollisions();
         this.cleanupObjects(gameState);
-        this.updateCameraAndLights();
+        this.updateCameraAndLights(delta);
         
         this.composer.render();
     }
 
-    updateSuperJumpEffect(delta) {
+    updateSuperJumpEffect() {
         this.player.mesh.scale.y += (2.5 - this.player.mesh.scale.y) * 0.1;
         this.trail.visible = true;
         const trailLength = 20;
@@ -214,11 +221,29 @@ class Game3D {
         }
     }
 
-    updateCameraAndLights() {
+    updateCameraAndLights(delta) {
         const playerPos = this.player.mesh.position;
-        this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
-        this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
-        this.camera.position.z = playerPos.z + 10;
+
+        // VYLEPŠENÍ: Logika pro úvodní animaci kamery
+        if (this.introAnimation.active) {
+            this.introAnimation.timer += delta;
+            const progress = Math.min(this.introAnimation.timer / this.introAnimation.duration, 1);
+            
+            // Plynulý přechod z počáteční do cílové pozice
+            const startPos = new THREE.Vector3(0, 8, playerPos.z + 12);
+            const endPos = new THREE.Vector3(playerPos.x * 0.5, playerPos.y + 3, playerPos.z + 10);
+            
+            this.camera.position.lerpVectors(startPos, endPos, progress * progress); // Ease-in efekt
+
+            if (progress >= 1) {
+                this.introAnimation.active = false;
+            }
+        } else {
+             // Standardní sledování hráče
+            this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
+            this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
+            this.camera.position.z = playerPos.z + 10;
+        }
         
         this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
         this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
@@ -245,7 +270,8 @@ class Game3D {
 
     spawnObject() { 
         const rand = Math.random();
-        const zPos = this.player.mesh.position.z - 150;
+        // VYLEPŠENÍ: Objekty se objevují dál
+        const zPos = this.player.mesh.position.z - 180;
         let newObject;
 
         if (rand < 0.50) {
@@ -266,9 +292,12 @@ class Game3D {
         }
     }
     
-    checkCollisions(gameState) {
+    checkCollisions() {
         if (!this.player.mesh.visible) return;
-        this.playerCollider.setFromObject(this.player.mesh);
+        
+        // VYLEPŠENÍ: Používáme menší, přesnější hitbox pro hráče
+        const colliderSize = new THREE.Vector3(0.7, 0.7, 0.7);
+        this.playerCollider.setFromCenterAndSize(this.player.mesh.position, colliderSize);
 
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
@@ -307,7 +336,4 @@ class Game3D {
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 }
-
-// OPRAVA: Změněn způsob exportu pro maximální spolehlivost.
-export { Game3D };
 

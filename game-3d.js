@@ -77,43 +77,90 @@ class Game3D {
     
     createPlayer() {
         const playerGroup = new THREE.Group();
-
+        
         // Materiály
-        const coreMat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x00BFFF, emissiveIntensity: 3 });
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.4, emissive: 0x111111 });
-        const wingMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.5 });
-        
-        // Tělo boardu
-        const mainBoard = new THREE.Mesh(new THREE.BoxGeometry(1, 0.1, 2.5), bodyMat);
-        mainBoard.position.y = -0.1;
+        const bodyMat = new THREE.MeshStandardMaterial({ 
+            color: 0xFF007F, // Magenta
+            metalness: 0.6, 
+            roughness: 0.4 
+        });
+        const accentMat = new THREE.MeshStandardMaterial({ color: 0x4B5563, roughness: 0.5 });
+        const ventMat = new THREE.MeshStandardMaterial({ color: 0x10B981, emissive: 0x10B981, emissiveIntensity: 1 });
+        this.headlightMat = new THREE.MeshPhongMaterial({ color: 0x00BFFF, emissive: 0x00BFFF, emissiveIntensity: 4 });
 
-        // Přední část
-        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.1, 0.5), bodyMat);
-        nose.position.z = -1.5;
-        nose.position.y = -0.05;
+        // Tělo boardu (složené z více částí pro tvar)
+        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.5), bodyMat);
+        mainBody.scale.x = 0.8; // Zúžení uprostřed
 
-        // Pulzující jádro
-        this.playerCore = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 8), coreMat);
-        this.playerCore.position.y = 0.2;
-        
-        // Křídla
-        this.wingLeft = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.04, 1.5), wingMat);
-        this.wingLeft.position.x = -0.8;
-        this.wingLeft.rotation.z = 0.25;
-        this.wingLeft.rotation.y = -0.1;
-        
-        this.wingRight = this.wingLeft.clone();
-        this.wingRight.position.x = 0.8;
-        this.wingRight.rotation.z = -0.25;
-        this.wingRight.rotation.y = 0.1;
-        
-        // Podsvícení
-        const underglow = new THREE.PointLight(0x00BFFF, 5, 5);
-        underglow.position.y = -0.5;
+        const frontSection = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.8), bodyMat);
+        frontSection.position.z = -1.2;
 
-        playerGroup.add(mainBoard, nose, this.playerCore, this.wingLeft, this.wingRight, underglow);
+        const backSection = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.8), bodyMat);
+        backSection.position.z = 1.2;
+
+        // Aplikace textury s nálepkami
+        const decalTexture = this.createBoardTexture();
+        const decalMat = new THREE.MeshStandardMaterial({
+            map: decalTexture,
+            transparent: true,
+            polygonOffset: true,
+            polygonOffsetFactor: -0.1,
+        });
+        const decalPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.5), decalMat);
+        decalPlane.rotation.x = -Math.PI / 2;
+        decalPlane.position.y = 0.21;
+        
+        // Světla a detaily
+        this.headlightLeft = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.1), this.headlightMat);
+        this.headlightLeft.position.set(-0.4, 0, -1.55);
+        this.headlightRight = this.headlightLeft.clone();
+        this.headlightRight.position.x = 0.4;
+        
+        const frontVent = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.2), ventMat);
+        frontVent.position.set(0, -0.1, -1.5);
+
+        playerGroup.add(mainBody, frontSection, backSection, decalPlane, this.headlightLeft, this.headlightRight, frontVent);
+        playerGroup.scale.set(0.8, 0.8, 0.8);
         return playerGroup;
     }
+
+    createBoardTexture() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+
+        // Nápis "PEDRO"
+        ctx.font = 'bold 80px Rajdhani';
+        ctx.fillStyle = '#FFD700';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 8;
+        ctx.textAlign = 'center';
+        ctx.strokeText('PEDRO', 128, 150);
+        ctx.fillText('PEDRO', 128, 150);
+
+        // Nálepka stříkačky
+        ctx.save();
+        ctx.translate(128, 280);
+        ctx.rotate(-0.1);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(-40, -10, 80, 20); // Tělo
+        ctx.fillStyle = '#FF0000';
+        ctx.fillRect(-35, -5, 50, 10); // Tekutina
+        ctx.fillStyle = '#AAAAAA';
+        ctx.fillRect(40, -12, 10, 24); // Píst
+        ctx.fillRect(50, -5, 15, 10); // Úchyt
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(-40, 0);
+        ctx.lineTo(-60, 0); // Jehla
+        ctx.stroke();
+        ctx.restore();
+
+        return new THREE.CanvasTexture(canvas);
+    }
+
 
     createTunnel() {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
@@ -171,13 +218,11 @@ class Game3D {
         this.player.position.y = gameState.playerY;
         this.player.position.x += (targetX - this.player.position.x) * 0.15;
         this.player.rotation.y = (this.player.position.x - targetX) * -0.1;
-
-        // Animace křídel
-        this.wingLeft.rotation.z = 0.25 + (this.player.position.x - targetX) * 0.1;
-        this.wingRight.rotation.z = -0.25 + (this.player.position.x - targetX) * 0.1;
         
-        // Pulzující jádro
-        this.playerCore.material.emissiveIntensity = 2 + Math.sin(Date.now() * 0.01) * 1.5;
+        // Pulzující světla
+        const pulse = 2 + Math.sin(Date.now() * 0.01) * 1.5;
+        this.headlightLeft.material.emissiveIntensity = pulse;
+        this.headlightRight.material.emissiveIntensity = pulse;
 
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.position.z -= moveZ;

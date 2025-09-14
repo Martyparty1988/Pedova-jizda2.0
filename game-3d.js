@@ -16,7 +16,6 @@ class Game3D {
         this.onCollision = options.onCollision;
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        // ZMĚNA: Nový výchozí název zóny
         this.currentZone = 'aurora';
         this.zoneLength = 2000;
     }
@@ -94,6 +93,8 @@ class Game3D {
         this.camera.position.set(0, 4, 10);
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
+        // ZMĚNA: Reset pro novou animaci
+        this.player.frontFlipRotation = 0;
         this.currentZone = 'aurora';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
@@ -111,26 +112,43 @@ class Game3D {
     update(gameState, targetX, delta) {
         this.player.mesh.position.y = gameState.playerY;
         this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
-        this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
+        // ZMĚNA: Původní rotaci do stran při pohybu neaplikujeme během salta
+        if (!gameState.isDoingFrontFlip) {
+            this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
+        }
         this.player.update();
 
+        // Animace triku (barrel roll)
         if (gameState.isDoingTrick) {
             const rotationSpeed = 15;
             this.player.trickRotation += rotationSpeed * delta;
-            this.player.mesh.rotation.x = this.player.trickRotation;
+            this.player.mesh.rotation.z = this.player.trickRotation; // Rotace kolem Z osy
             if (this.player.trickRotation >= Math.PI * 2) {
                 this.player.trickRotation = 0;
-                this.player.mesh.rotation.x = 0;
+                this.player.mesh.rotation.z = 0;
                 gameState.isDoingTrick = false;
             }
         }
+        
+        // ZMĚNA: Nová animace pro salto vpřed
+        if (gameState.isDoingFrontFlip) {
+            const rotationSpeed = 10;
+            this.player.frontFlipRotation += rotationSpeed * delta;
+            this.player.mesh.rotation.x = this.player.frontFlipRotation; // Rotace kolem X osy
+            // Salto se ukončí, až když hráč dopadne
+            if (this.player.frontFlipRotation >= Math.PI * 2 && gameState.playerY <= -0.6) {
+                this.player.frontFlipRotation = 0;
+                this.player.mesh.rotation.x = 0;
+                gameState.isDoingFrontFlip = false;
+            }
+        }
+
 
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.mesh.position.z -= moveZ;
         
         const distance = Math.abs(this.player.mesh.position.z);
         const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
-        // ZMĚNA: Nové názvy zón v poli
         const zones = ['aurora', 'sunset', 'matrix'];
         const newZone = zones[zoneIndex];
 

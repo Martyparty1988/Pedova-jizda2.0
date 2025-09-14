@@ -79,14 +79,14 @@ class Game3D {
         const playerGroup = new THREE.Group();
         
         // Materiály
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFF007F, metalness: 0.6, roughness: 0.4 });
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFF3FA4, metalness: 0.6, roughness: 0.4 });
         const accentMat = new THREE.MeshStandardMaterial({ color: 0x5a687d, roughness: 0.5 });
-        const ventMat = new THREE.MeshStandardMaterial({ color: 0x10B981, emissive: 0x10B981, emissiveIntensity: 1 });
+        const ventMat = new THREE.MeshStandardMaterial({ color: 0x10B981 });
         this.headlightMat = new THREE.MeshPhongMaterial({ color: 0x00BFFF, emissive: 0x00BFFF, emissiveIntensity: 4 });
 
         // Tvar boardu pomocí THREE.Shape a ExtrudeGeometry
         const boardShape = new THREE.Shape();
-        const w = 0.7; const l = 1.4; const indent = 0.2; const r = 0.2;
+        const w = 0.7; const l = 1.4; const indent = 0.2; const r = 0.2; // Rozměry
 
         boardShape.moveTo(-w + r, l);
         boardShape.lineTo(w - r, l);
@@ -106,6 +106,7 @@ class Game3D {
         boardShape.lineTo(-w, l - r);
         boardShape.quadraticCurveTo(-w, l, -w + r, l);
 
+        // Otvor uprostřed
         const holeShape = new THREE.Path();
         const hw = 0.3; const hl = 0.6;
         holeShape.moveTo(-hw, hl); holeShape.lineTo(hw, hl); holeShape.lineTo(hw, -hl); holeShape.lineTo(-hw, -hl);
@@ -121,7 +122,15 @@ class Game3D {
 
         // Aplikace textury s nálepkami
         const decalTexture = this.createBoardTexture();
-        const decalMat = new THREE.MeshStandardMaterial({ map: decalTexture, transparent: true });
+        decalTexture.wrapS = THREE.RepeatWrapping;
+        decalTexture.wrapT = THREE.RepeatWrapping;
+        decalTexture.repeat.set(1, 1);
+        const decalMat = new THREE.MeshStandardMaterial({ 
+            map: decalTexture, 
+            transparent: true, 
+            polygonOffset: true, 
+            polygonOffsetFactor: -0.1 
+        });
         const decalGeo = new THREE.ShapeGeometry(boardShape);
         const decalPlane = new THREE.Mesh(decalGeo, decalMat);
         decalPlane.rotation.x = -Math.PI / 2;
@@ -160,7 +169,7 @@ class Game3D {
         const ctx = canvas.getContext('2d');
 
         // Nápis "PEDRO"
-        ctx.font = 'bold 70px Rajdhani';
+        ctx.font = 'bold 70px Teko, sans-serif';
         ctx.fillStyle = '#FFD700';
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 10;
@@ -173,19 +182,33 @@ class Game3D {
         ctx.translate(128, 180);
         ctx.rotate(-0.1);
         ctx.scale(1.2, 1.2);
+        
+        // Tělo
         ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(-40, -10, 80, 20); // Tělo
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.rect(-40, -10, 80, 20);
+        ctx.stroke();
+        ctx.fill();
+
+        // Tekutina
         ctx.fillStyle = '#FF0000';
-        ctx.fillRect(-35, -5, 50, 10); // Tekutina
+        ctx.fillRect(-35, -5, 50, 10);
+
+        // Píst
         ctx.fillStyle = '#AAAAAA';
-        ctx.fillRect(40, -12, 10, 24); // Píst
-        ctx.fillRect(50, -5, 15, 10); // Úchyt
-        ctx.strokeStyle = '#000000';
+        ctx.fillRect(40, -12, 10, 24); 
+        ctx.fillRect(50, -5, 15, 10); 
+        
+        // Jehla
+        ctx.strokeStyle = '#333333';
         ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(-40, 0);
-        ctx.lineTo(-60, 0); // Jehla
+        ctx.lineTo(-60, 0); 
         ctx.stroke();
+        
         ctx.restore();
 
         return new THREE.CanvasTexture(canvas);
@@ -195,7 +218,8 @@ class Game3D {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
         const tubeGeo = new THREE.TubeGeometry(tubePath, 12, 8, 8, false);
         const tubeTex = this.createProceduralTunnelTexture();
-        tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping;
+        tubeTex.wrapS = THREE.RepeatWrapping;
+        tubeTex.wrapT = THREE.RepeatWrapping;
         const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
         return new THREE.Mesh(tubeGeo, tubeMat);
     }
@@ -248,7 +272,6 @@ class Game3D {
         this.player.position.x += (targetX - this.player.position.x) * 0.15;
         this.player.rotation.y = (this.player.position.x - targetX) * -0.1;
         
-        // Pulzující světla
         const pulse = 2 + Math.sin(Date.now() * 0.01) * 1.5;
         this.headlightLeft.material.emissiveIntensity = pulse;
         this.headlightRight.material.emissiveIntensity = pulse;

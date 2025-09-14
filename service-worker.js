@@ -1,11 +1,16 @@
 // Název cache - změňte pro invalidaci a novou instalaci
-const CACHE_NAME = 'pedrova-jizda-cache-v2';
+const CACHE_NAME = 'pedrova-jizda-cache-v3';
 // Seznam všech souborů, které jsou potřeba pro offline běh
 const assetsToCache = [
   './',
   'index.html',
-  'icon.svg',
   'manifest.json',
+  'icons/icon-16x16.png',
+  'icons/icon-32x32.png',
+  'icons/icon-180x180.png',
+  'icons/icon-192x192.png',
+  'icons/icon-256x256.png',
+  'icons/icon-512x512.jpg', // Opravená cesta na .jpg
   // Externí zdroje jako Skypack a Google Fonts jsou také potřeba
   'https://cdn.skypack.dev/three@0.132.2',
   'https://cdn.skypack.dev/three@0.132.2/examples/jsm/objects/Reflector.js',
@@ -92,4 +97,3 @@ self.addEventListener('fetch', event => {
     })
   );
 });
-

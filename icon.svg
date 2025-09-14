@@ -1,33 +1,48 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="2.2" result="blur"/>
+    <filter id="neon" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2.2" result="glow"/>
       <feMerge>
-        <feMergeNode in="blur"/>
+        <feMergeNode in="glow"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <radialGradient id="bg" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#252c3a"/>
-      <stop offset="100%" stop-color="#15181c"/>
+    <radialGradient id="bg" cx="50%" cy="60%" r="65%">
+      <stop offset="0%" stop-color="#232b3a"/>
+      <stop offset="100%" stop-color="#181921"/>
     </radialGradient>
   </defs>
-  <!-- Moderní kruhové pozadí -->
+  <!-- Pozadí s gradientem a stylizovaný tunel -->
   <rect width="100" height="100" rx="24" fill="url(#bg)"/>
-  <!-- Dominantní stříkačka, stylizovaná a vylepšená -->
-  <g filter="url(#soft-glow)">
-    <!-- Jehla -->
-    <rect x="35" y="48" width="32" height="3" rx="1.2" fill="#e2f0fa"/>
-    <!-- Tělo stříkačky -->
-    <rect x="40" y="41" width="24" height="16" rx="5" fill="#0ad6ff" stroke="#fff" stroke-width="2"/>
-    <!-- Píst -->
-    <rect x="54" y="44" width="6" height="10" rx="1.5" fill="#fff" opacity="0.75"/>
-    <!-- Hlavice pístu -->
-    <circle cx="57" cy="44" r="3" fill="#fff"/>
-    <!-- Dekorativní neon akcent -->
-    <rect x="40" y="50" width="24" height="3" rx="1.2" fill="#ff007f" opacity=".7"/>
+  <!-- Tunel - jednoduchá perspektivní elipsa -->
+  <ellipse cx="50" cy="80" rx="35" ry="14" fill="#2f3553" opacity=".38" filter="url(#neon)"/>
+  <ellipse cx="50" cy="36" rx="25" ry="9" fill="none" stroke="#00cff7" stroke-width="2" opacity=".36"/>
+    <!-- Pohybové linie tunelu -->
+  <path d="M42 38 Q50 50 50 80" stroke="#00cff7" stroke-width="1.2" opacity=".18" fill="none"/>
+  <path d="M58 38 Q50 50 50 80" stroke="#00cff7" stroke-width="1.2" opacity=".18" fill="none"/>
+    <!-- Skateboard (pohled zezadu, trochu shora) -->
+  <g filter="url(#neon)">
+    <rect x="39" y="70" width="22" height="4.5" rx="2.2" fill="#232b3a" stroke="#0ad6ff" stroke-width="1.2"/>
+    <!-- Kolečka -->
+    <ellipse cx="43" cy="76" rx="2.2" ry="1.1" fill="#ff007f"/>
+    <ellipse cx="57" cy="76" rx="2.2" ry="1.1" fill="#ff007f"/>
   </g>
-  <!-- Decentní stín -->
-  <ellipse cx="52" cy="73" rx="14" ry="3" fill="#000" opacity="0.15"/>
+  <!-- Stříkačka, výrazná, moderní - opticky letí tunelem, perspektiva -->
+  <g filter="url(#neon)">
+    <!-- Jehla, lehce sešikmená -->
+    <rect x="48" y="32" width="4" height="24" rx="1.1" fill="#eaf2fb" transform="rotate(7 50 44)"/>
+    <!-- Tělo stříkačky -->
+    <rect x="44" y="50" width="12" height="22" rx="4" fill="#0ad6ff" stroke="#fff" stroke-width="2"/>
+    <!-- Průhledný vnitřek - světlejší pruh -->
+    <rect x="49" y="53" width="2" height="16" rx="1" fill="#fff" opacity="0.5"/>
+    <!-- Píst -->
+    <rect x="47" y="63" width="6" height="8" rx="1.5" fill="#fff" opacity="0.65"/>
+    <!-- Hlavice pístu zezadu -->
+    <ellipse cx="50" cy="69" rx="3.2" ry="2.1" fill="#fff"/>
+    <!-- Akcentní neonové linie -->
+    <rect x="44" y="60" width="12" height="2" rx="1" fill="#ff007f" opacity=".65"/>
+  </g>
+  <!-- "Motion lines" a záře za stříkačkou, pohyb dopředu -->
+  <path d="M48 66 Q45 85 50 88 Q55 85 52 66" stroke="#0ad6ff" stroke-width="1.2" opacity="0.18" fill="none"/>
 </svg>
 

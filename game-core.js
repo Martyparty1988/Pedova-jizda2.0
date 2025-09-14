@@ -7,7 +7,7 @@ const GRAVITY = -30;
 const JUMP_FORCE = 10;
 const LANE_WIDTH = 4;
 
-class GameCore {
+export class GameCore {
     constructor() {
         this.ui = new GameUI();
         this.logic = new GameLogic();
@@ -24,7 +24,8 @@ class GameCore {
 
         this.lastSwipeUpTime = 0;
         this.lastJumpKeyPressTime = 0;
-        this.doubleTapDelay = 300;
+        // VYLEPŠENÍ: Větší časové okno pro dvojité přejetí
+        this.doubleTapDelay = 450;
     }
 
     async init() {
@@ -52,7 +53,9 @@ class GameCore {
         const addListener = (id, event, handler) => {
             const element = this.ui.elements[id];
             if (element) element.addEventListener(event, handler);
+            else console.warn(`Element s ID '${id}' nebyl nalezen.`);
         };
+
         addListener('play-btn', 'click', () => this.startGame());
         addListener('restart-btn', 'click', () => this.startGame());
         addListener('menu-btn', 'click', () => {
@@ -86,7 +89,7 @@ class GameCore {
         this.ui.showScreen('game-screen');
         this.ui.updateSkillUI(this.logic.skills);
         this.ui.updateLives(this.gameState.lives);
-        this.ui.updateCollectibleCount(this.gameState.runStats.collectibles);
+        this.ui.updateCollectibles(0);
         
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
@@ -95,16 +98,14 @@ class GameCore {
     menuLoop() {
         if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
         this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
-        const delta = this.threeD.clock.getDelta();
-        this.threeD.updateMenuBackground(delta);
+        this.threeD.updateMenuBackground(this.threeD.clock.getDelta());
     }
     
     gameLoop() {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
         if (this.gameState.isPaused) return;
-        const delta = this.threeD.clock.getDelta();
-        this.update(delta);
+        this.update(this.threeD.clock.getDelta());
     }
 
     update(delta) {
@@ -112,28 +113,30 @@ class GameCore {
         this.ui.updateScore(this.gameState.score);
         this.logic.updatePlayerVerticalPosition(this.gameState, delta, GRAVITY);
         this.logic.updateSkills(delta, () => this.ui.updateSkillUI(this.logic.skills));
-        const targetX = (this.gameState.lane - 1) * LANE_WIDTH;
-        this.threeD.update(this.gameState, targetX, delta);
+        this.threeD.update(this.gameState, (this.gameState.lane - 1) * LANE_WIDTH, delta);
     }
 
     handleCollision(type, index) {
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
             if (powerupType === 'life' || powerupType === 'shield') {
-                this.ui.updateLives(this.gameState.lives);
                 this.audio.playSound('powerup_shield');
+                this.ui.showQuote('powerup');
+                if (powerupType === 'life') this.ui.updateLives(this.gameState.lives);
             } else {
                 this.audio.playSound('powerup');
+                this.ui.showQuote('powerup');
                 this.ui.triggerScoreGlow();
             }
-            this.ui.showQuote('powerup');
+            this.audio.vibrate(50);
         } else if (type === 'collectible') {
             this.logic.collectCollectible(this.gameState, index, this.threeD.gameObjects);
             this.audio.playSound('collectible');
-            this.ui.updateCollectibleCount(this.gameState.runStats.collectibles);
             this.ui.triggerScoreGlow();
+            this.ui.updateCollectibles(this.gameState.runStats.collectibles);
         } else if (type === 'obstacle') {
             if (this.gameState.invincibilityTimer > 0) return;
+
             if (this.logic.consumeShield(this.gameState)) {
                 this.audio.playSound('shield_break');
                 this.threeD.triggerShieldBreakEffect();
@@ -143,6 +146,7 @@ class GameCore {
                 const flash = document.getElementById('collision-flash');
                 flash.classList.add('flash');
                 setTimeout(() => flash.classList.remove('flash'), 500);
+                this.audio.vibrate([100, 50, 100]);
                 this.audio.playSound('collision');
                 const isGameOver = this.logic.handlePlayerHit(this.gameState);
                 this.ui.updateLives(this.gameState.lives);
@@ -179,9 +183,13 @@ class GameCore {
                     if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
                         this.doSuperJump();
                         this.lastSwipeUpTime = 0;
-                    } else this.doJump();
+                    } else {
+                        this.doJump();
+                    }
                     this.lastSwipeUpTime = now;
-                } else this.doDash();
+                } else {
+                    this.doDash();
+                }
             }
             this.touchStart = null;
         } else if (type === 'keydown') {
@@ -194,7 +202,9 @@ class GameCore {
                     if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
                         this.doSuperJump();
                         this.lastJumpKeyPressTime = 0;
-                    } else this.doJump();
+                    } else {
+                        this.doJump();
+                    }
                     this.lastJumpKeyPressTime = now;
                     break;
                 case 'ArrowDown': case 'KeyS': event.preventDefault(); this.doDash(); break;
@@ -217,7 +227,7 @@ class GameCore {
             this.logic.activateSkill('superJump');
             this.ui.updateSkillUI(this.logic.skills);
             this.gameState.playerVelocityY = JUMP_FORCE * 1.5;
-            this.gameState.jumpCount = 1;
+            this.gameState.jumpCount = 1; 
             this.gameState.isDoingSuperJump = true;
             this.gameState.runStats.jumps++;
             this.audio.playSound('super_jump');
@@ -227,6 +237,7 @@ class GameCore {
 
     doDash() {
         if (this.logic.canDash(this.gameState)) {
+            this.audio.vibrate(75);
             this.gameState.isDashing = true;
             this.logic.activateSkill('dash');
             this.ui.updateSkillUI(this.logic.skills);
@@ -243,6 +254,4 @@ class GameCore {
         this.ui.togglePause(this.gameState.isPaused);
     }
 }
-
-export { GameCore };
 

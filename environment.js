@@ -12,7 +12,8 @@ export class Environment {
         const { tunnel, wireframe } = this.createFuturisticTunnel();
         this.tunnel = tunnel;
         this.tunnelWireframe = wireframe;
-        // OPRAVA: Vytvoření nové podlahy pomocí GridHelper
+
+        // OPRAVA: Vytvoření podlahy ve středu tunelu
         this.floor = this.createGridFloor();
 
         // Vytvoření částic a světelných prstenců
@@ -29,6 +30,7 @@ export class Environment {
             roughness: 0.8,
             metalness: 0.2
         });
+
         const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
         tunnel.rotation.x = Math.PI / 2;
 
@@ -40,21 +42,23 @@ export class Environment {
             opacity: 0.5,
             blending: THREE.AdditiveBlending
         });
+
         const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
         wireframe.rotation.x = Math.PI / 2;
         
         return { tunnel, wireframe };
     }
 
-    // OPRAVA: Nová metoda pro vytvoření podlahy jako mřížky
+    // OPRAVA: Podlaha uprostřed tunelu místo na dně
     createGridFloor() {
         const size = 200;
         const divisions = 50;
+        
         // Použití GridHelper pro jednoduchou a efektivní mřížku
         const gridHelper = new THREE.GridHelper(size, divisions, 0x00aacc, 0x333333);
         
-        // Pozice mřížky, aby byla na dně tunelu
-        gridHelper.position.y = -8.5; 
+        // OPRAVA: Pozice mřížky uprostřed tunelu (tunel má poloměr 10)
+        gridHelper.position.y = -2.5;  // Místo -8.5, teď je víc ve středu
         
         return gridHelper;
     }
@@ -62,6 +66,7 @@ export class Environment {
     createDigitalParticles() {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
+
         for (let i = 0; i < 500; i++) {
             vertices.push(
                 (Math.random() - 0.5) * 20,
@@ -69,6 +74,7 @@ export class Environment {
                 (Math.random() - 0.5) * 200
             );
         }
+
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         
         const material = new THREE.PointsMaterial({
@@ -78,6 +84,7 @@ export class Environment {
             opacity: 0.7,
             blending: THREE.AdditiveBlending,
         });
+
         return new THREE.Points(geometry, material);
     }
     
@@ -92,17 +99,21 @@ export class Environment {
             ring.position.z = -i * 20;
             group.add(ring);
         }
+
         return group;
     }
     
     setZone(zone, scene, ambientLight) {
         const theme = this.zoneThemes[zone];
         if (!theme) return;
+
         scene.fog.color.setHex(theme.fogColor);
         ambientLight.color.setHex(theme.ambientColor);
+
         this.lightRings.children.forEach((ring, i) => {
             ring.material.color.setHex(i % 2 === 0 ? theme.baseColor : theme.accentColor);
         });
+
         this.dustParticles.material.color.setHex(theme.particleColor);
         this.tunnelWireframe.material.color.setHex(theme.accentColor);
     }
@@ -110,9 +121,9 @@ export class Environment {
     update(moveZ, playerPosition, time) {
         const rotationSpeed = 0.1;
         const rotation = -time * rotationSpeed;
+
         this.tunnel.rotation.z = rotation;
         this.tunnelWireframe.rotation.z = rotation;
-
         this.tunnelWireframe.material.opacity = 0.4 + Math.sin(time * 5) * 0.2;
 
         this.lightRings.children.forEach(ring => {
@@ -123,9 +134,8 @@ export class Environment {
         });
 
         this.dustParticles.position.z += moveZ * 0.8;
-         if (this.dustParticles.position.z > playerPosition.z + 100) {
+        if (this.dustParticles.position.z > playerPosition.z + 100) {
             this.dustParticles.position.z -= 200;
         }
     }
 }
-

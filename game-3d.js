@@ -79,47 +79,76 @@ class Game3D {
         const playerGroup = new THREE.Group();
         
         // Materiály
-        const bodyMat = new THREE.MeshStandardMaterial({ 
-            color: 0xFF007F, // Magenta
-            metalness: 0.6, 
-            roughness: 0.4 
-        });
-        const accentMat = new THREE.MeshStandardMaterial({ color: 0x4B5563, roughness: 0.5 });
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xFF007F, metalness: 0.6, roughness: 0.4 });
+        const accentMat = new THREE.MeshStandardMaterial({ color: 0x5a687d, roughness: 0.5 });
         const ventMat = new THREE.MeshStandardMaterial({ color: 0x10B981, emissive: 0x10B981, emissiveIntensity: 1 });
         this.headlightMat = new THREE.MeshPhongMaterial({ color: 0x00BFFF, emissive: 0x00BFFF, emissiveIntensity: 4 });
 
-        // Tělo boardu (složené z více částí pro tvar)
-        const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.4, 2.5), bodyMat);
-        mainBody.scale.x = 0.8; // Zúžení uprostřed
+        // Tvar boardu pomocí THREE.Shape a ExtrudeGeometry
+        const boardShape = new THREE.Shape();
+        const w = 0.7; const l = 1.4; const indent = 0.2; const r = 0.2;
 
-        const frontSection = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.8), bodyMat);
-        frontSection.position.z = -1.2;
+        boardShape.moveTo(-w + r, l);
+        boardShape.lineTo(w - r, l);
+        boardShape.quadraticCurveTo(w, l, w, l - r);
+        boardShape.lineTo(w, l * 0.4);
+        boardShape.quadraticCurveTo(w, l * 0.2, w - indent, l * 0.2);
+        boardShape.lineTo(w - indent, -l * 0.2);
+        boardShape.quadraticCurveTo(w, -l * 0.2, w, -l * 0.4);
+        boardShape.lineTo(w, -l + r);
+        boardShape.quadraticCurveTo(w, -l, w - r, -l);
+        boardShape.lineTo(-w + r, -l);
+        boardShape.quadraticCurveTo(-w, -l, -w, -l + r);
+        boardShape.lineTo(-w, -l * 0.4);
+        boardShape.quadraticCurveTo(-w, -l * 0.2, -w + indent, -l * 0.2);
+        boardShape.lineTo(-w + indent, l * 0.2);
+        boardShape.quadraticCurveTo(-w, l * 0.2, -w, l * 0.4);
+        boardShape.lineTo(-w, l - r);
+        boardShape.quadraticCurveTo(-w, l, -w + r, l);
 
-        const backSection = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 0.8), bodyMat);
-        backSection.position.z = 1.2;
+        const holeShape = new THREE.Path();
+        const hw = 0.3; const hl = 0.6;
+        holeShape.moveTo(-hw, hl); holeShape.lineTo(hw, hl); holeShape.lineTo(hw, -hl); holeShape.lineTo(-hw, -hl);
+        holeShape.closePath();
+        boardShape.holes.push(holeShape);
+        
+        const extrudeSettings = { depth: 0.3, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.05, bevelSegments: 8 };
+        const boardGeo = new THREE.ExtrudeGeometry(boardShape, extrudeSettings);
+        
+        const mainBody = new THREE.Mesh(boardGeo, bodyMat);
+        mainBody.rotation.x = -Math.PI / 2;
+        mainBody.position.y = 0;
 
         // Aplikace textury s nálepkami
         const decalTexture = this.createBoardTexture();
-        const decalMat = new THREE.MeshStandardMaterial({
-            map: decalTexture,
-            transparent: true,
-            polygonOffset: true,
-            polygonOffsetFactor: -0.1,
-        });
-        const decalPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.5), decalMat);
+        const decalMat = new THREE.MeshStandardMaterial({ map: decalTexture, transparent: true });
+        const decalGeo = new THREE.ShapeGeometry(boardShape);
+        const decalPlane = new THREE.Mesh(decalGeo, decalMat);
         decalPlane.rotation.x = -Math.PI / 2;
-        decalPlane.position.y = 0.21;
-        
+        decalPlane.position.y = 0.26; // Těsně nad povrchem
+
+        // Šedé akcenty vpředu
+        const accentShape = new THREE.Shape();
+        accentShape.moveTo(-w, -l*0.8);
+        accentShape.lineTo(w, -l*0.8);
+        accentShape.quadraticCurveTo(w, -l, w*0.8, -l);
+        accentShape.lineTo(-w*0.8, -l);
+        accentShape.quadraticCurveTo(-w, -l, -w, -l*0.8);
+        const accentGeo = new THREE.ShapeGeometry(accentShape);
+        const accentMesh = new THREE.Mesh(accentGeo, accentMat);
+        accentMesh.rotation.x = -Math.PI / 2;
+        accentMesh.position.y = 0.251;
+
         // Světla a detaily
         this.headlightLeft = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.1), this.headlightMat);
-        this.headlightLeft.position.set(-0.4, 0, -1.55);
+        this.headlightLeft.position.set(-0.45, 0.05, -l + 0.05);
         this.headlightRight = this.headlightLeft.clone();
-        this.headlightRight.position.x = 0.4;
+        this.headlightRight.position.x = 0.45;
         
         const frontVent = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.05, 0.2), ventMat);
-        frontVent.position.set(0, -0.1, -1.5);
-
-        playerGroup.add(mainBody, frontSection, backSection, decalPlane, this.headlightLeft, this.headlightRight, frontVent);
+        frontVent.position.set(0, -0.1, -l);
+        
+        playerGroup.add(mainBody, decalPlane, accentMesh, this.headlightLeft, this.headlightRight, frontVent);
         playerGroup.scale.set(0.8, 0.8, 0.8);
         return playerGroup;
     }
@@ -131,18 +160,19 @@ class Game3D {
         const ctx = canvas.getContext('2d');
 
         // Nápis "PEDRO"
-        ctx.font = 'bold 80px Rajdhani';
+        ctx.font = 'bold 70px Rajdhani';
         ctx.fillStyle = '#FFD700';
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 8;
+        ctx.lineWidth = 10;
         ctx.textAlign = 'center';
-        ctx.strokeText('PEDRO', 128, 150);
-        ctx.fillText('PEDRO', 128, 150);
+        ctx.strokeText('PEDRO', 128, 380);
+        ctx.fillText('PEDRO', 128, 380);
 
         // Nálepka stříkačky
         ctx.save();
-        ctx.translate(128, 280);
+        ctx.translate(128, 180);
         ctx.rotate(-0.1);
+        ctx.scale(1.2, 1.2);
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(-40, -10, 80, 20); // Tělo
         ctx.fillStyle = '#FF0000';
@@ -160,7 +190,6 @@ class Game3D {
 
         return new THREE.CanvasTexture(canvas);
     }
-
 
     createTunnel() {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));

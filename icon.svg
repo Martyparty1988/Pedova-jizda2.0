@@ -1,172 +1,155 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1536" viewBox="0 0 1024 1536" version="1.1">
-  <defs>
-    <!-- Glow filter -->
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="8" result="blur" />
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1024" height="1536" viewBox="0 0 1024 1536" version="1.1" role="img" aria-label="Neon syringe on skateboard">
+  <defs>
+    <!-- Glow filters -->
+    <filter id="glow-soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="glow-strong" x="-120%" y="-120%" width="340%" height="340%">
+      <feGaussianBlur stdDeviation="18" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
 
-    <!-- Stronger glow for needle/wheels -->
-    <filter id="glow-strong" x="-70%" y="-70%" width="240%" height="240%">
-      <feGaussianBlur stdDeviation="14" result="blur2"/>
-      <feMerge>
-        <feMergeNode in="blur2"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <!-- Gradients used for neon strokes -->
+    <linearGradient id="gCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0" stop-color="#00f6ff"/>
+      <stop offset="1" stop-color="#00a4ff"/>
+    </linearGradient>
+    <linearGradient id="gPink" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0" stop-color="#ff2bd6"/>
+      <stop offset="1" stop-color="#ff4a9a"/>
+    </linearGradient>
+    <linearGradient id="gNeedle" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0" stop-color="#33ffdd"/>
+      <stop offset="1" stop-color="#00ffd2"/>
+    </linearGradient>
+    <linearGradient id="gWheel" x1="0%" y1="0%" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffd63a"/>
+      <stop offset="1" stop-color="#ffb300"/>
+    </linearGradient>
 
-    <!-- Neon gradients -->
-    <linearGradient id="grad-cyan-to-blue" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#00f0ff"/>
-      <stop offset="100%" stop-color="#00a4ff"/>
-    </linearGradient>
+    <!-- subtle vignette -->
+    <radialGradient id="v" cx="50%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.7"/>
+    </radialGradient>
 
-    <linearGradient id="grad-pink" x1="0%" x2="100%" y1="0%" y2="100%">
-      <stop offset="0%" stop-color="#ff2bd6"/>
-      <stop offset="100%" stop-color="#ff4a9a"/>
-    </linearGradient>
+    <style><![CDATA[
+      .stroke-neon { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    ]]></style>
+  </defs>
 
-    <linearGradient id="grad-needle" x1="0%" x2="100%" y1="0%" y2="0%">
-      <stop offset="0%" stop-color="#33ffdd"/>
-      <stop offset="1" stop-color="#00ffb3"/>
-    </linearGradient>
+  <!-- background -->
+  <rect width="100%" height="100%" fill="#05050a"/>
 
-    <linearGradient id="grad-wheel" x1="0%" x2="1" y1="0" y2="1">
-      <stop offset="0" stop-color="#ffd63a"/>
-      <stop offset="1" stop-color="#ffb300"/>
-    </linearGradient>
+  <!-- subtle grain overlay (simulated with low opacity noise-like rectangles) -->
+  <g opacity="0.03">
+    <rect width="100%" height="100%" fill="#071021"/>
+  </g>
 
-    <!-- subtle vignette -->
-    <radialGradient id="vignette" cx="50%" cy="35%" r="70%">
-      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
-    </radialGradient>
+  <!-- motion streaks (long, faint) -->
+  <g stroke="#12d6ff" stroke-width="6" stroke-linecap="round" opacity="0.45" filter="url(#glow-soft)">
+    <path d="M180 1180 C340 1050 560 980 740 940"/>
+    <path d="M220 1220 C420 1080 640 1000 820 960" opacity="0.32"/>
+  </g>
 
-    <!-- stroke styles -->
-    <style type="text/css"><![CDATA[
-      .neon { stroke-linecap: round; stroke-linejoin: round; fill: none; }
-    ]]></style>
+  <!-- skateboard group: positioned bottom-left -> rotated to match image -->
+  <g transform="translate(160,980) rotate(-30)">
+    <!-- deck outline (bright magenta neon) -->
+    <path class="stroke-neon" d="M180 0
+                                C260 -22 400 -22 480 0
+                                C520 18 520 54 480 72
+                                C400 94 260 94 180 72
+                                C140 54 140 18 180 0 Z"
+          stroke="url(#gPink)" stroke-width="12" filter="url(#glow-soft)"/>
+    <!-- deck highlight -->
+    <path d="M190 16 C265 -4 405 -4 480 16" fill="none" stroke="#ff8bd3" stroke-width="4" stroke-linecap="round" opacity="0.95" filter="url(#glow-soft)"/>
 
-  </defs>
+    <!-- underside cyan accent -->
+    <path d="M200 40 C280 20 400 20 480 40" fill="none" stroke="#12d6ff" stroke-width="6" stroke-linecap="round" opacity="0.65" filter="url(#glow-soft)"/>
 
-  <!-- dark textured background -->
-  <rect width="100%" height="100%" fill="#06060a"/>
+    <!-- wheels: front -->
+    <g transform="translate(420,36)">
+      <circle cx="0" cy="0" r="26" fill="url(#gWheel)" filter="url(#glow-strong)"/>
+      <circle cx="0" cy="0" r="10" fill="#1f1f1f" stroke="#ffffff33" stroke-width="2"/>
+    </g>
+    <!-- wheels: back -->
+    <g transform="translate(220,72)">
+      <circle cx="0" cy="0" r="26" fill="url(#gWheel)" filter="url(#glow-strong)"/>
+      <circle cx="0" cy="0" r="10" fill="#1f1f1f" stroke="#ffffff33" stroke-width="2"/>
+    </g>
 
-  <!-- faint subtle grain (simple pattern) -->
-  <g opacity="0.04">
-    <rect width="100%" height="100%" fill="url(#vignette)"/>
-  </g>
+    <!-- tiny speed streaks by wheels -->
+    <g stroke="#00f0ff" stroke-width="3" stroke-linecap="round" filter="url(#glow-soft)" opacity="0.6">
+      <path d="M452 20 L490 -8"/>
+      <path d="M210 70 L250 38"/>
+    </g>
+  </g>
 
-  <!-- motion trail lines -->
-  <g stroke="#00a4ff" stroke-width="6" stroke-linecap="round" opacity="0.6" filter="url(#glow)">
-    <path d="M220 1180 L380 1060" stroke-opacity="0.35"/>
-    <path d="M260 1220 L420 1100" stroke-opacity="0.25"/>
-    <path d="M190 1140 L340 1010" stroke-opacity="0.22"/>
-  </g>
+  <!-- syringe group (slightly above and rotated) -->
+  <g transform="translate(380,640) rotate(20) scale(1.04)">
+    <!-- plunger back ellipse -->
+    <ellipse cx="8" cy="360" rx="28" ry="12" fill="none" stroke="url(#gCyan)" stroke-width="10" filter="url(#glow-soft)"/>
 
-  <!-- skateboard deck (magenta neon) -->
-  <g transform="translate(240,980) rotate(-30)">
-    <path d="M0 0 C80 -22 220 -22 300 0 C340 18 340 54 300 72 C220 94 80 94 0 72 C-40 54 -40 18 0 0 Z"
-          transform="translate(180, -40)"
-          class="neon"
-          stroke="url(#grad-pink)"
-          stroke-width="10"
-          filter="url(#glow)"/>
-    <!-- deck inner highlight -->
-    <path d="M10 13 C85 -6 215 -6 290 13" transform="translate(180,-40)"
-          stroke="#ff8bd3" stroke-width="4" stroke-linecap="round" opacity="0.9" fill="none" filter="url(#glow)"/>
-  </g>
+    <!-- plunger rod -->
+    <rect x="56" y="-6" width="18" height="240" rx="6" fill="none" stroke="url(#gCyan)" stroke-width="6" filter="url(#glow-soft)"/>
 
-  <!-- skateboard underside (a bit offset for 3D look) -->
-  <g transform="translate(240,980) rotate(-30)" opacity="0.9">
-    <path d="M20 40 C100 20 220 20 300 40" transform="translate(180,-40)"
-          stroke="#12d6ff" stroke-width="6" stroke-linecap="round" opacity="0.6" filter="url(#glow)"/>
-  </g>
+    <!-- barrel outer -->
+    <path d="M0 30 L0 200 C0 213 160 213 160 200 L160 30 C160 12 152 0 128 0 L32 0 C8 0 0 12 0 30 Z"
+          class="stroke-neon" stroke="url(#gCyan)" stroke-width="12" filter="url(#glow-soft)"/>
 
-  <!-- wheels -->
-  <g transform="translate(240,980) rotate(-30)">
-    <!-- front wheel -->
-    <g transform="translate(320, 22) translate(180,-40)">
-      <circle cx="0" cy="0" r="22" fill="url(#grad-wheel)" filter="url(#glow-strong)"/>
-      <circle cx="0" cy="0" r="10" fill="#2b2b2b" stroke="#fff3" stroke-width="2" opacity="0.25"/>
-    </g>
-    <!-- back wheel -->
-    <g transform="translate(120, 58) translate(180,-40)">
-      <circle cx="0" cy="0" r="22" fill="url(#grad-wheel)" filter="url(#glow-strong)"/>
-      <circle cx="0" cy="0" r="10" fill="#2b2b2b" stroke="#fff3" stroke-width="2" opacity="0.25"/>
-    </g>
-  </g>
+    <!-- barrel inner subtle gradient fill to mimic glow inside -->
+    <path d="M6 36 L6 194 C6 200 154 200 154 194 L154 36 C154 22 146 14 128 14 L32 14 C14 14 6 22 6 36 Z"
+          fill="rgba(0,246,255,0.02)"/>
 
-  <!-- syringe group (main subject), angled and slightly above skateboard -->
-  <g transform="translate(350,640) rotate(22)">
-    <!-- syringe body -->
-    <g transform="scale(1.05) translate(-120,-360)">
-      <!-- plunger (back) -->
-      <rect x="-8" y="190" width="32" height="160" rx="12" fill="none" stroke="#00f0ff" stroke-width="10" filter="url(#glow)" opacity="0.95"/>
-      <ellipse cx="8" cy="360" rx="26" ry="12" fill="none" stroke="#00f0ff" stroke-width="9" filter="url(#glow)" opacity="0.95"/>
+    <!-- measurement ticks -->
+    <g stroke="#8ffaff" stroke-width="4" stroke-linecap="round" filter="url(#glow-soft)">
+      <path d="M24 44 L42 44"/>
+      <path d="M24 76 L50 76"/>
+      <path d="M24 108 L56 108"/>
+      <path d="M24 140 L50 140"/>
+      <path d="M24 172 L42 172"/>
+    </g>
 
-      <!-- syringe barrel (neon cyan with inner marks) -->
-      <path d="M0 30 L0 200 C0 210 160 210 160 200 L160 30 C160 8 152 0 128 0 L32 0 C8 0 0 8 0 30 Z"
-            fill="none"
-            stroke="url(#grad-cyan-to-blue)"
-            stroke-width="12"
-            class="neon"
-            filter="url(#glow)"/>
+    <!-- flange / finger grips -->
+    <g transform="translate(48,200)">
+      <ellipse cx="30" cy="54" rx="48" ry="22" fill="none" stroke="url(#gCyan)" stroke-width="10" filter="url(#glow-soft)"/>
+      <rect x="-22" y="34" width="124" height="12" rx="6" fill="none" stroke="url(#gCyan)" stroke-width="10" filter="url(#glow-soft)"/>
+    </g>
 
-      <!-- measurement ticks -->
-      <g stroke="#00f7ff" stroke-width="4" stroke-linecap="round" filter="url(#glow)">
-        <path d="M24 40 L40 40"/>
-        <path d="M24 70 L48 70"/>
-        <path d="M24 100 L56 100"/>
-        <path d="M24 130 L48 130"/>
-        <path d="M24 160 L40 160"/>
-      </g>
+    <!-- needle base and needle -->
+    <path d="M140 -8 L172 -36" stroke="url(#gNeedle)" stroke-width="6" stroke-linecap="round" filter="url(#glow-strong)"/>
+    <path d="M172 -36 L205 -75" stroke="#00ffd2" stroke-width="4" stroke-linecap="round" filter="url(#glow-strong)"/>
 
-      <!-- plunger rod (inside barrel) -->
-      <rect x="60" y="-8" width="18" height="230" rx="6" fill="none" stroke="#00f0ff" stroke-width="6" filter="url(#glow)" opacity="0.9"/>
+    <!-- subtle surface highlights -->
+    <path d="M18 12 C40 0 120 0 140 12" fill="none" stroke="#67ffff" stroke-opacity="0.6" stroke-width="3" filter="url(#glow-soft)"/>
 
-      <!-- syringe flange (where fingers hold) -->
-      <g transform="translate(50,200)">
-        <ellipse cx="30" cy="54" rx="46" ry="20" fill="none" stroke="url(#grad-cyan-to-blue)" stroke-width="10" filter="url(#glow)"/>
-        <rect x="-20" y="34" width="120" height="12" rx="6" fill="none" stroke="url(#grad-cyan-to-blue)" stroke-width="10" filter="url(#glow)"/>
-      </g>
+    <!-- small magenta decals / scratches to harmonize with skateboard -->
+    <g stroke="#ff77d9" stroke-width="3" stroke-linecap="round" opacity="0.9" filter="url(#glow-soft)">
+      <path d="M18 182 L34 172"/>
+      <path d="M120 152 L136 142"/>
+    </g>
+  </g>
 
-      <!-- needle base -->
-      <path d="M140 -8 L172 -36" stroke="url(#grad-needle)" stroke-width="6" stroke-linecap="round" filter="url(#glow-strong)"/>
+  <!-- faint magenta motion trail connecting deck & syringe (curved) -->
+  <path d="M180 1130 C360 980 540 920 720 900"
+        fill="none" stroke="#ff2bd6" stroke-width="6" stroke-linecap="round" opacity="0.9" filter="url(#glow-soft)"/>
 
-      <!-- needle tip -->
-      <path d="M172 -36 L200 -70" stroke="#00ffd2" stroke-width="4" stroke-linecap="round" filter="url(#glow-strong)"/>
+  <!-- cyan accent trail -->
+  <path d="M200 1160 C380 1010 560 960 740 940"
+        fill="none" stroke="#12d6ff" stroke-width="4" stroke-linecap="round" opacity="0.6" filter="url(#glow-soft)"/>
 
-      <!-- subtle inner highlights on barrel -->
-      <path d="M18 12 C40 0 120 0 140 12" fill="none" stroke="#67ffff" stroke-opacity="0.65" stroke-width="3" filter="url(#glow)"/>
+  <!-- finishing vignette -->
+  <rect x="0" y="0" width="100%" height="100%" fill="url(#v)" opacity="0.65"/>
 
-      <!-- little scratches/decals -->
-      <g stroke="#ff77d9" stroke-width="3" stroke-linecap="round" opacity="0.85" filter="url(#glow)">
-        <path d="M18 180 L34 170"/>
-        <path d="M120 150 L136 140"/>
-      </g>
-    </g>
-  </g>
-
-  <!-- accent neon lines trailing from deck and syringe contact -->
-  <g filter="url(#glow)" opacity="0.9">
-    <path d="M180 1130 C360 980 540 920 720 900" fill="none" stroke="#ff2bd6" stroke-width="6" stroke-linecap="round" stroke-opacity="0.85"/>
-    <path d="M200 1160 C380 1010 560 960 740 940" fill="none" stroke="#12d6ff" stroke-width="4" stroke-linecap="round" stroke-opacity="0.6"/>
-  </g>
-
-  <!-- extra tiny speed streaks near wheels -->
-  <g stroke="#00f0ff" stroke-width="3" stroke-linecap="round" filter="url(#glow)" opacity="0.6">
-    <path d="M480 1060 L520 1030"/>
-    <path d="M450 1090 L490 1060"/>
-  </g>
-
-  <!-- finishing vignette overlay -->
-  <rect x="0" y="0" width="100%" height="100%" fill="url(#vignette)" opacity="0.55"/>
-
-  <!-- optional signature dot (tiny) -->
-  <circle cx="980" cy="1500" r="6" fill="#ffffff" opacity="0.03"/>
+  <!-- tiny signature / dot (very faint) -->
+  <circle cx="980" cy="1500" r="4" fill="#ffffff" opacity="0.02"/>
 </svg>

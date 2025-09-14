@@ -1,262 +1,175 @@
-import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
-import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
+// OPRAVA: Definována konstantní výška pro hráče.
+const PLAYER_BASE_Y = 0.5;
 
-import { Player } from './player.js';
-import { Environment } from './environment.js';
-import { GameObjectFactory } from './gameObjectFactory.js';
-
-const LANE_WIDTH = 4;
-
-// OPRAVA: Přidáno "export" přímo sem, aby bylo sdílení 100% spolehlivé.
-export class Game3D {
-    constructor(options) {
-        this.canvas = options.canvas;
-        this.onCollision = options.onCollision;
-        this.gameObjects = [];
-        this.lastSpawnZ = 0;
-        this.currentZone = 'aurora';
-        this.zoneLength = 2000;
-    }
-
-    async init() {
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
-        this.camera.position.set(0, 4, 10);
-        this.clock = new THREE.Clock();
-        this.playerCollider = new THREE.Box3();
-        this.obstacleCollider = new THREE.Box3();
-
-        try {
-            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
-            if (this.renderer.getContext() === null) throw new Error("Nepodařilo se získat WebGL kontext.");
-        } catch (e) {
-            throw new Error(`Selhání inicializace WebGL Rendereru: ${e.message}`);
-        }
-
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.setClearColor(0x000000, 0);
-
-        this.setupPostProcessing();
-        this.setupWorld();
-    }
-    
-    setupPostProcessing() {
-        const composer = new EffectComposer(this.renderer);
-        composer.addPass(new RenderPass(this.scene, this.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.1);
-        composer.addPass(bloomPass);
-
-        const customShader = {
-            uniforms: { "tDiffuse": { value: null }, "vignette": { value: 0.9 } },
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
-            fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; varying vec2 vUv; void main() { vec4 color = texture2D( tDiffuse, vUv ); float vig = 1.0 - smoothstep(0.0, vignette, length(vUv - 0.5)); gl_FragColor = color * vig; }`
+class GameLogic {
+    constructor() {
+        // OPRAVA: Odstraněna nepotřebná dovednost "doubleJump"
+        this.skills = {
+            dash: { unlocked: true, cooldown: 0, duration: 5000 },
+            superJump: { unlocked: true, cooldown: 0, duration: 3000 }
         };
-        const shaderPass = new ShaderPass(customShader);
-        composer.addPass(shaderPass);
-        this.composer = composer;
     }
 
-    setupWorld() {
-        this.player = new Player();
-        this.environment = new Environment();
-        this.objectFactory = new GameObjectFactory();
-        
-        this.scene.fog = new THREE.Fog(0x050810, 15, 80);
-        this.ambientLight = new THREE.AmbientLight(0x080820, 2.5);
-        this.scene.add(this.ambientLight);
-
-        this.scene.add(this.player.mesh);
-        this.player.mesh.visible = false;
-        
-        this.scene.add(this.environment.tunnel);
-        this.scene.add(this.environment.floor);
-        this.scene.add(this.environment.dustParticles);
-        this.scene.add(this.environment.lightRings);
-        
-        this.shield = this.objectFactory.createShield();
-        this.player.mesh.add(this.shield);
-
-        this.keyLight = new THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
-        this.scene.add(this.keyLight);
-        this.scene.add(this.keyLight.target);
+    getInitialGameState() {
+        return {
+            isPlaying: true,
+            isPaused: false,
+            isDashing: false,
+            score: 0,
+            speed: 8,
+            baseSpeed: 8,
+            maxSpeed: 30,
+            startTime: Date.now(),
+            // OPRAVA: Nastavena správná startovní výška
+            playerY: PLAYER_BASE_Y,
+            playerVelocityY: 0,
+            jumpCount: 0,
+            lane: 1,
+            lives: 3,
+            maxLives: 5,
+            invincibilityTimer: 0,
+            hasShield: false,
+            // OPRAVA: Odstraněny nepotřebné stavy pro animace
+            runStats: {
+                jumps: 0,
+                dashes: 0,
+                powerups: 0,
+                obstaclesDodged: 0
+            }
+        };
     }
-    
-    reset() {
-        [...this.gameObjects].forEach(o => this.scene.remove(o.mesh));
-        this.gameObjects = [];
-        this.lastSpawnZ = 0;
-        this.player.mesh.position.set(0, 0, 0);
-        this.player.mesh.visible = true;
-        this.camera.position.set(0, 4, 10);
-        this.player.mesh.rotation.set(0, 0, 0);
-        
-        this.currentZone = 'aurora';
-        this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
-    }
-    
-    updateMenuBackground(delta) {
-        this.camera.position.z -= delta * 5;
-        this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
-        this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
-        this.camera.rotation.y = Math.sin(Date.now() * 0.0001) * 0.1;
-        
-        this.environment.update(delta * 5, this.camera.position, delta);
-        this.composer.render();
-    }
-    
-    update(gameState, targetX, delta) {
-        this.player.mesh.position.y = gameState.playerY;
-        this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
-        
-        this.player.update(delta);
 
-        const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
-        this.player.mesh.position.z -= moveZ;
-        
-        const distance = Math.abs(this.player.mesh.position.z);
-        const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
-        const zones = ['aurora', 'sunset', 'matrix'];
-        const newZone = zones[zoneIndex];
+    resetSkills() {
+        this.skills.dash.cooldown = 0;
+        this.skills.superJump.cooldown = 0;
+    }
 
-        if (newZone !== this.currentZone) {
-            this.currentZone = newZone;
-            this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+    updateSkills(delta, onUpdate) {
+        let needsUpdate = false;
+        if (this.currentGameState && this.currentGameState.invincibilityTimer > 0) {
+            this.currentGameState.invincibilityTimer -= delta * 1000;
         }
 
-        this.lastSpawnZ += moveZ;
-        if (this.lastSpawnZ > (600 / gameState.speed)) {
-            this.spawnObject();
-            this.lastSpawnZ = 0;
+        for (const skill of Object.values(this.skills)) {
+            if (skill.cooldown > 0) {
+                skill.cooldown -= delta * 1000;
+                if (skill.cooldown <= 0) {
+                    skill.cooldown = 0;
+                    needsUpdate = true;
+                }
+            }
         }
-        
-        if (gameState.invincibilityTimer > 0) {
-            this.player.mesh.visible = Math.floor(Date.now() / 100) % 2 === 0;
-        } else {
-            this.player.mesh.visible = true;
+        if (needsUpdate && onUpdate) {
+            onUpdate();
         }
-        this.shield.visible = gameState.hasShield;
-        if (this.shield.visible) {
-            this.shield.rotation.y += delta;
-            this.shield.rotation.x += delta * 0.5;
-        }
-        
-        this.environment.update(moveZ, this.player.mesh.position, delta);
-        this.updateGameObjects(delta);
-        this.checkCollisions(gameState);
-        this.cleanupObjects(gameState);
-        this.updateCameraAndLights();
-        
-        this.composer.render();
     }
     
-    updateGameObjects(delta) {
-        for (const obj of this.gameObjects) {
-            if (obj.movement) {
-                obj.mesh.position.x += obj.movement.speed * delta * obj.movement.direction;
-                if (Math.abs(obj.mesh.position.x) > LANE_WIDTH) {
-                    obj.movement.direction *= -1;
+    activateSkill(skillName) {
+        if(this.skills[skillName]) {
+            this.skills[skillName].cooldown = this.skills[skillName].duration;
+        }
+    }
+
+    // OPRAVA: Podmínka nyní používá správnou výšku a je zjednodušená.
+    canJump(gameState) {
+        return gameState.jumpCount < 1 && gameState.playerY <= PLAYER_BASE_Y;
+    }
+    
+    canSuperJump(gameState) {
+        return this.skills.superJump.cooldown <= 0;
+    }
+
+    canDash(gameState) {
+        return !gameState.isDashing && this.skills.dash.cooldown <= 0;
+    }
+
+    updateScore(gameState, delta) {
+        this.currentGameState = gameState;
+        gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 2500);
+        gameState.score += Math.floor(gameState.speed * delta * 10);
+    }
+
+    // OPRAVA: Logika dopadu a gravitace nyní používá správnou výšku.
+    updatePlayerVerticalPosition(gameState, delta, gravity) {
+        if (gameState.playerY > PLAYER_BASE_Y || gameState.playerVelocityY !== 0) {
+            gameState.playerVelocityY += gravity * delta;
+            gameState.playerY += gameState.playerVelocityY * delta;
+            if (gameState.playerY <= PLAYER_BASE_Y) {
+                gameState.playerY = PLAYER_BASE_Y;
+                gameState.playerVelocityY = 0;
+                gameState.jumpCount = 0;
+                // Vypneme efekt super skoku po dopadu
+                if (gameState.isDoingSuperJump) {
+                    gameState.isDoingSuperJump = false;
                 }
             }
         }
     }
 
-    updateCameraAndLights() {
-        const playerPos = this.player.mesh.position;
-        this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
-        this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
-        this.camera.position.z = playerPos.z + 10;
+    collectPowerup(gameState, index, gameObjects) {
+        const obj = gameObjects[index];
+        if (!obj || !obj.mesh.visible) return null;
+
+        obj.mesh.visible = false;
+        gameState.runStats.powerups++;
         
-        this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
-        this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
-        this.keyLight.target.updateMatrixWorld();
+        const powerupType = obj.powerupType;
+
+        if (powerupType === 'shield') {
+            gameState.hasShield = true;
+        } else if (powerupType === 'life') {
+            if (gameState.lives < gameState.maxLives) {
+                gameState.lives++;
+            }
+        } else { // 'speed' je default
+            gameState.score += 500;
+            gameState.baseSpeed += 1;
+            setTimeout(() => gameState.baseSpeed -= 1, 5000);
+        }
+        
+        setTimeout(() => {
+            const realIndex = gameObjects.indexOf(obj);
+            if (realIndex > -1) {
+                 gameObjects.splice(realIndex, 1);
+            }
+        }, 100);
+        
+        return powerupType;
+    }
+    
+    consumeShield(gameState) {
+        if (gameState.hasShield) {
+            gameState.hasShield = false;
+            return true;
+        }
+        return false;
     }
 
-    triggerShieldBreakEffect() {
-        if (!this.shield) return;
-        const initialScale = 1;
-        this.shield.scale.set(initialScale, initialScale, initialScale);
-        let scale = initialScale;
-        const animate = () => {
-            scale += 0.5;
-            this.shield.scale.set(scale, scale, scale);
-            this.shield.material.opacity -= 0.1;
-            if (this.shield.material.opacity > 0) {
-                requestAnimationFrame(animate);
-            } else {
-                this.shield.scale.set(initialScale, initialScale, initialScale);
-                this.shield.material.opacity = 0.3;
-            }
+    handlePlayerHit(gameState) {
+        gameState.lives--;
+        gameState.invincibilityTimer = 2000;
+
+        return gameState.lives <= 0;
+    }
+
+    getFinalStats(gameState) {
+        const stats = { 
+            score: gameState.score, 
+            time: ((Date.now() - gameState.startTime) / 1000).toFixed(1), 
+            ...gameState.runStats 
         };
-        animate();
+        const best = localStorage.getItem('fp3d_bestScore') || 0;
+        stats.bestScore = Math.max(best, stats.score);
+        return stats;
     }
 
-    spawnObject() { 
-        const rand = Math.random();
-        const zPos = this.player.mesh.position.z - 150;
-        let newObject;
-
-        if (rand < 0.70) {
-            newObject = this.objectFactory.createObstacle(zPos);
-        } else if (rand < 0.85) {
-            newObject = this.objectFactory.createPowerup('speed', zPos);
-        } else if (rand < 0.95) {
-            newObject = this.objectFactory.createPowerup('shield', zPos);
-        } else {
-            newObject = this.objectFactory.createPowerup('life', zPos);
-        }
-        
-        if (newObject.mesh) {
-            this.scene.add(newObject.mesh);
-            this.gameObjects.push(newObject);
-        }
+    saveStats(finalStats) {
+        localStorage.setItem('fp3d_bestScore', finalStats.bestScore);
     }
     
-    checkCollisions(gameState) {
-        if (!this.player.mesh.visible) return;
-        this.playerCollider.setFromObject(this.player.mesh);
-
-        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
-            const obj = this.gameObjects[i];
-            if (!obj.mesh || !obj.mesh.visible || Math.abs(obj.mesh.position.z - this.player.mesh.position.z) > 4) continue;
-            
-            this.obstacleCollider.setFromObject(obj.mesh);
-            if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
-                this.onCollision(obj.type, i);
-            }
-        }
-    }
-    
-    cleanupObjects(gameState) {
-        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
-            const obj = this.gameObjects[i];
-            if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
-                this.scene.remove(obj.mesh);
-                obj.mesh.traverse(child => {
-                    if (child.geometry) child.geometry.dispose();
-                    if (child.material) {
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(mat => mat.dispose());
-                        } else {
-                            child.material.dispose();
-                        }
-                    }
-                });
-                if (obj.type === 'obstacle') gameState.runStats.obstaclesDodged++;
-                this.gameObjects.splice(i, 1);
-            }
-        }
-    }
-
-    onWindowResize() {
-        if (!this.camera || !this.renderer) return;
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.composer.setSize(window.innerWidth, window.innerHeight);
+    loadStats(elements) {
+        elements['best-score'].textContent = localStorage.getItem('fp3d_bestScore') || 0;
     }
 }
 
+export { GameLogic };

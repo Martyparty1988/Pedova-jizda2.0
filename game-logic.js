@@ -16,8 +16,9 @@ export class GameLogic {
             isPaused: false,
             isDashing: false,
             score: 0,
-            speed: 8,
-            baseSpeed: 8,
+            // VYLEPŠENÍ: Nižší počáteční rychlost
+            speed: 7,
+            baseSpeed: 7,
             maxSpeed: 30,
             startTime: Date.now(),
             playerY: PLAYER_BASE_Y,
@@ -83,7 +84,8 @@ export class GameLogic {
 
     updateScore(gameState, delta) {
         this.currentGameState = gameState;
-        gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 2500);
+        // VYLEPŠENÍ: Plynulejší zrychlování
+        gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 3500);
         gameState.score += Math.floor(gameState.speed * delta * 10);
     }
 

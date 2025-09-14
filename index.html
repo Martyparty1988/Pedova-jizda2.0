@@ -307,9 +307,9 @@
             composer.addPass(bloomPass);
 
             const customShader = {
-                uniforms: { "tDiffuse": { value: null }, "vignette": { value: 0.9 }, "scanline": { value: 0.03 } },
+                uniforms: { "tDiffuse": { value: null }, "vignette": { value: 0.9 } },
                 vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
-                fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; uniform float scanline; varying vec2 vUv; void main() { vec4 color = texture2D( tDiffuse, vUv ); float vig = 1.0 - smoothstep(0.0, vignette, length(vUv - 0.5)); float scan = sin(vUv.y * 500.0) * scanline; gl_FragColor = color * vig - scan; }`
+                fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; varying vec2 vUv; void main() { vec4 color = texture2D( tDiffuse, vUv ); float vig = 1.0 - smoothstep(0.0, vignette, length(vUv - 0.5)); gl_FragColor = color * vig; }`
             };
             const shaderPass = new ShaderPass(customShader);
             composer.addPass(shaderPass);
@@ -617,5 +617,8 @@
     };
     </script>
 </body>
+</html>
+
+
 </html>
 

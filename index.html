@@ -24,7 +24,7 @@
 
     <div id="collision-flash"></div>
 
-    <div id="loading-screen" class="screen active">
+    <div id="loading-screen" class="screen">
         <div class="glass-panel">
             <h1 class="cyber-title">PEDROVA JÍZDA</h1>
             <div class="loading-spinner"></div>
@@ -32,13 +32,19 @@
         </div>
     </div>
 
-    <div id="main-menu" class="screen">
+    <div id="main-menu" class="screen active">
         <div class="menu-content">
             <div class="title-glitch-wrapper">
                 <h1 class="cyber-title menu-title" data-text="PEDROVA JÍZDA">PEDROVA JÍZDA</h1>
             </div>
             <p class="menu-subtitle">Absťák je jen začátek. Cesta nikdy nekončí.</p>
-            <button class="cyber-btn menu-play-btn" id="play-btn">
+            
+            <div id="menu-loading-container" class="menu-loading-container">
+                <div class="loading-spinner" id="menu-loading-spinner"></div>
+                <div class="loading-text" id="menu-loading-text"></div>
+            </div>
+
+            <button class="cyber-btn menu-play-btn" id="play-btn" disabled>
                 <span>💉 DÁT SI</span>
             </button>
         </div>

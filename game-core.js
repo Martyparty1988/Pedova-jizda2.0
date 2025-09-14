@@ -73,6 +73,8 @@ class GameCore {
     startGame() {
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
+        // ZMĚNA: Přidán nový stav pro animaci triku
+        this.gameState.isDoingTrick = false; 
         this.logic.resetSkills();
         this.threeD.reset();
         this.ui.showScreen('game-screen');
@@ -111,18 +113,31 @@ class GameCore {
      * Zpracovává kolize detekované v 3D modulu.
      */
     handleCollision(type, index) {
-        if (type === 'obstacle') {
-            this.gameOver();
-        } else if (type === 'powerup') {
-            this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
-            this.audio.playSound('powerup');
-            this.ui.showQuote('powerup');
-            this.ui.triggerScoreGlow();
+        // ZMĚNA: Upraveno pro zpracování štítu
+        if (type.startsWith('powerup')) {
+            const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
+            if (powerupType === 'shield') {
+                this.audio.playSound('powerup_shield');
+                this.ui.showQuote('powerup');
+            } else {
+                this.audio.playSound('powerup');
+                this.ui.showQuote('powerup');
+                this.ui.triggerScoreGlow();
+            }
             this.audio.vibrate(50);
-            // Spuštění nového vizuálního efektu pro power-up
-            this.threeD.triggerPowerupEffect(this.threeD.player.position);
+        } else if (type === 'obstacle') {
+            if (this.logic.consumeShield(this.gameState)) {
+                // Štít byl spotřebován
+                this.audio.playSound('shield_break');
+                this.threeD.triggerShieldBreakEffect();
+                this.threeD.gameObjects[index].mesh.visible = false; // Skryjeme překážku
+                this.gameState.invincibilityTimer = 1000; // Krátká nesmrtelnost
+            } else if(this.gameState.invincibilityTimer <= 0) {
+                this.gameOver();
+            }
         }
     }
+
 
     /**
      * Ukončí hru a zobrazí statistiky.
@@ -130,7 +145,6 @@ class GameCore {
     gameOver() {
         if (!this.gameState.isPlaying) return;
 
-        // Spuštění CSS animace pro červený záblesk
         const flash = document.getElementById('collision-flash');
         flash.classList.add('flash');
         setTimeout(() => flash.classList.remove('flash'), 500);
@@ -176,7 +190,7 @@ class GameCore {
     }
 
     /**
-     * Provede skok nebo dvojskok.
+     * Provede skok nebo trik.
      */
     doJump() {
         if (this.logic.canJump(this.gameState)) {
@@ -186,18 +200,20 @@ class GameCore {
             this.audio.playSound('jump');
             this.ui.showQuote('jump');
         } else if (this.logic.canDoubleJump(this.gameState)) {
+            // ZMĚNA: Přidána aktivace triku a nová hláška
             this.gameState.playerVelocityY = JUMP_FORCE * 0.9;
             this.gameState.jumpCount = 2;
             this.logic.activateSkill('doubleJump');
             this.ui.updateSkillUI(this.logic.skills);
             this.gameState.runStats.jumps++;
+            this.gameState.isDoingTrick = true; // Aktivace animace triku
             this.audio.playSound('jump');
-            this.ui.showQuote('frontflip');
+            this.ui.showQuote('trik'); // Nová kategorie hlášky
         }
     }
 
     /**
-     * Provede rychlý pohyb vpřed (dash).
+     * Provede rychlý pohyb vpřed (boost).
      */
     doDash() {
         if (this.logic.canDash(this.gameState)) {
@@ -207,7 +223,8 @@ class GameCore {
             this.ui.updateSkillUI(this.logic.skills);
             this.gameState.runStats.dashes++;
             this.audio.playSound('dash');
-            this.ui.showQuote('slide');
+            // ZMĚNA: Nová kategorie hlášky
+            this.ui.showQuote('boost');
             setTimeout(() => this.gameState.isDashing = false, 300);
         }
     }

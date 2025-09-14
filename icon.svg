@@ -1,40 +1,56 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
     <!-- Filtr pro neonový glow efekt -->
-    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+   i to predelat do profi ikony, tohle je moc amatersky
+Rozumím! Pokud chceš z tohoto SVG udělat „profi“ ikonu, doporučuji následující úpravy pro moderní a profesionální vzhled, jaký očekáváš od kvalitních launcher ikon:
+
+Hlavní doporučení pro profi ikonu:
+
+Udržet jednodušší, srozumitelný symbol – méně křivek a detailů pro lepší čitelnost i v malých rozměrech.
+
+Zvětšit kontrast mezi objekty, ideálně použít kombinaci 2–3 výrazných barev (např. tmavé pozadí + světlá stříkačka + akcentní neon).
+
+Upravit proporce tak, aby hlavní objekt (stříkačka) byl jasně dominantní a opticky vycentrovaný.
+
+Omezit efekt „neon-glow“ na decentní rámeček kolem hlavního prvku; potlačit přílišné rozpití.
+
+Zaoblit detaily a hrany pro moderní dojem (v duchu materiál designu 2026).
+
+Přidat jemný stín nebo zvýraznění pro 3D efekt (ne však přehnaně).
+
+Ikonu navrhnout do perfektního čtverce s bezpečným okrajem (padding).
+
+Návrh nové SVG ikony (včetně barev, proporcí a jednoduchého rámečku):
+xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.2" result="blur"/>
       <feMerge>
-        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
+    <radialGradient id="bg" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#252c3a"/>
+      <stop offset="100%" stop-color="#15181c"/>
+    </radialGradient>
   </defs>
-
-  <!-- Pozadí ikony, navrženo pro maskování (např. do kruhu na Androidu) -->
-  <rect width="100" height="100" rx="22" fill="#121212"/>
-
-  <!-- Moderní, abstraktní tunel s perspektivou -->
-  <g filter="url(#neon-glow)" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="4">
-    <!-- Vnější oblouk tunelu -->
-    <path d="M 25 30 Q 50 20, 75 30 L 80 70 Q 50 80, 20 70 Z" stroke="#FF007F"/>
-    <!-- Vnitřní oblouk tunelu pro hloubku -->
-    <path d="M 38 40 Q 50 35, 62 40 L 65 60 Q 50 65, 35 60 Z" stroke="#FF007F" opacity="0.7"/>
-  </g>
-  
-  <!-- Injekční stříkačka letící tunelem -->
-  <g transform="rotate(-15 50 50) translate(-2, 0)" filter="url(#neon-glow)">
+  <!-- Moderní kruhové pozadí -->
+  <rect width="100" height="100" rx="24" fill="url(#bg)"/>
+  <!-- Dominantní stříkačka, stylizovaná a vylepšená -->
+  <g filter="url(#soft-glow)">
     <!-- Jehla -->
-    <path d="M28 50 H42" stroke="#EAEAEA" stroke-width="2" stroke-linecap="round"/>
-    <!-- Konec stříkačky (uchycení jehly) -->
-    <path d="M42 47 L46 47 L46 53 L42 53 Z" fill="#00BFFF"/>
-    <!-- Tělo stříkačky (průhledné) -->
-    <rect x="46" y="46" width="25" height="8" rx="2" fill="rgba(0, 191, 255, 0.3)" stroke="#00BFFF" stroke-width="1.5"/>
-    <!-- Píst uvnitř -->
-    <rect x="48" y="48" width="15" height="4" rx="1" fill="#00BFFF"/>
-    <!-- Konec pístu -->
-    <rect x="71" y="45" width="4" height="10" rx="1" fill="#00BFFF"/>
-    <rect x="75" y="47.5" width="6" height="5" rx="1" fill="#00BFFF"/>
+    <rect x="35" y="48" width="32" height="3" rx="1.2" fill="#e2f0fa"/>
+    <!-- Tělo stříkačky -->
+    <rect x="40" y="41" width="24" height="16" rx="5" fill="#0ad6ff" stroke="#fff" stroke-width="2"/>
+    <!-- Píst -->
+    <rect x="54" y="44" width="6" height="10" rx="1.5" fill="#fff" opacity="0.75"/>
+    <!-- Hlavice pístu -->
+    <circle cx="57" cy="44" r="3" fill="#fff"/>
+    <!-- Dekorativní neon akcent -->
+    <rect x="40" y="50" width="24" height="3" rx="1.2" fill="#ff007f" opacity=".7"/>
   </g>
+  <!-- Decentní stín -->
+  <ellipse cx="52" cy="73" rx="14" ry="3" fill="#000" opacity="0.15"/>
 </svg>
-
-

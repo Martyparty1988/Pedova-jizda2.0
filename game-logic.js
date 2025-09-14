@@ -1,8 +1,10 @@
 class GameLogic {
     constructor() {
+        // ZMĚNA: Přidána nová schopnost 'superJump'
         this.skills = {
-            doubleJump: { unlocked: false, cooldown: 0, duration: 2000 },
-            dash: { unlocked: false, cooldown: 0, duration: 5000 }
+            doubleJump: { unlocked: true, cooldown: 0, duration: 2000 },
+            dash: { unlocked: true, cooldown: 0, duration: 5000 },
+            superJump: { unlocked: true, cooldown: 0, duration: 3000 }
         };
     }
 
@@ -20,10 +22,9 @@ class GameLogic {
             playerVelocityY: 0,
             jumpCount: 0,
             lane: 1,
-            // ZMĚNA: Přidán systém životů
             lives: 3,
-            maxLives: 5, // Maximální počet životů
-            invincibilityTimer: 0, // Časovač nesmrtelnosti po zásahu
+            maxLives: 5,
+            invincibilityTimer: 0,
             hasShield: false,
             runStats: {
                 jumps: 0,
@@ -35,15 +36,13 @@ class GameLogic {
     }
 
     resetSkills() {
-        this.skills.doubleJump.unlocked = true;
-        this.skills.dash.unlocked = true;
         this.skills.doubleJump.cooldown = 0;
         this.skills.dash.cooldown = 0;
+        this.skills.superJump.cooldown = 0; // ZMĚNA: Reset cooldownu i pro super skok
     }
 
     updateSkills(delta, onUpdate) {
         let needsUpdate = false;
-        // ZMĚNA: Používáme this.currentGameState, aby se časovač správně aktualizoval
         if (this.currentGameState && this.currentGameState.invincibilityTimer > 0) {
             this.currentGameState.invincibilityTimer -= delta * 1000;
         }
@@ -69,15 +68,21 @@ class GameLogic {
     }
 
     canJump(gameState) {
-        return gameState.jumpCount < 1 && gameState.playerY <= -0.6;
+        // Nelze skočit, pokud se provádí salto vpřed
+        return gameState.jumpCount < 1 && gameState.playerY <= -0.6 && !gameState.isDoingFrontFlip;
     }
 
     canDoubleJump(gameState) {
-        return gameState.jumpCount < 2 && this.skills.doubleJump.unlocked && this.skills.doubleJump.cooldown <= 0;
+        return gameState.jumpCount < 2 && this.skills.doubleJump.cooldown <= 0;
+    }
+
+    // ZMĚNA: Nová funkce pro ověření, zda lze provést super skok
+    canSuperJump(gameState) {
+        return this.skills.superJump.cooldown <= 0;
     }
 
     canDash(gameState) {
-        return !gameState.isDashing && this.skills.dash.unlocked && this.skills.dash.cooldown <= 0;
+        return !gameState.isDashing && this.skills.dash.cooldown <= 0;
     }
 
     updateScore(gameState, delta) {
@@ -109,7 +114,7 @@ class GameLogic {
 
         if (powerupType === 'shield') {
             gameState.hasShield = true;
-        } else if (powerupType === 'life') { // ZMĚNA: Přidána logika pro sebrání života
+        } else if (powerupType === 'life') {
             if (gameState.lives < gameState.maxLives) {
                 gameState.lives++;
             }
@@ -137,12 +142,10 @@ class GameLogic {
         return false;
     }
 
-    // ZMĚNA: Nová funkce pro zpracování zásahu hráče
     handlePlayerHit(gameState) {
         gameState.lives--;
-        gameState.invincibilityTimer = 2000; // 2 sekundy nesmrtelnosti
+        gameState.invincibilityTimer = 2000;
 
-        // Vrací true, pokud hráčovi došly životy
         return gameState.lives <= 0;
     }
 

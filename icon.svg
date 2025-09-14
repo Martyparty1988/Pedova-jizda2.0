@@ -19,14 +19,19 @@
           stroke="#FF007F" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
   
-  <!-- Injekční stříkačka letící skrz tunel s tyrkysovou září -->
-  <g transform="rotate(-30 50 50) translate(2, 2)" filter="url(#neon-glow)">
-    <!-- Tělo stříkačky -->
-    <rect x="30" y="48" width="40" height="4" rx="2" fill="#00BFFF"/>
-    <!-- Píst -->
-    <rect x="68" y="46" width="6" height="8" rx="2" fill="#00BFFF"/>
+  <!-- Detailnější injekční stříkačka -->
+  <g transform="rotate(-30 50 50) translate(0, 0)" filter="url(#neon-glow)">
     <!-- Jehla -->
-    <path d="M 20,50 H 30" stroke="#00BFFF" stroke-width="2" stroke-linecap="round"/>
+    <path d="M18 50 H32" stroke="#EAEAEA" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Konec stříkačky (uchycení jehly) -->
+    <path d="M32 47 L36 47 L36 53 L32 53 Z" fill="#00BFFF"/>
+    <!-- Tělo stříkačky (průhledné) -->
+    <rect x="36" y="46" width="30" height="8" rx="2" fill="rgba(0, 191, 255, 0.2)" stroke="#00BFFF" stroke-width="1"/>
+    <!-- Píst uvnitř -->
+    <rect x="38" y="48" width="20" height="4" rx="1" fill="#00BFFF"/>
+    <!-- Konec pístu -->
+    <rect x="66" y="45" width="4" height="10" rx="1" fill="#00BFFF"/>
+    <rect x="70" y="47.5" width="6" height="5" rx="1" fill="#00BFFF"/>
   </g>
 </svg>
 

@@ -27,16 +27,16 @@
     <!-- Styl status baru na iOS (černý s průsvitností, obsah jde pod něj) -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-    <!-- Hlavní ikona pro Apple zařízení ("Přidat na plochu"), doporučený rozměr 180x180 -->
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <!-- Hlavní ikona pro Apple zařízení ("Přidat na plochu") -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
 
-    <!-- ===== Standardní favicony pro prohlížeče ===== -->
-
-    <!-- Hlavní ikona jako SVG (preferovaná pro moderní prohlížeče) -->
-    <link rel="icon" href="icon.svg" type="image/svg+xml">
-    <!-- Fallback PNG ikony pro různé účely a starší prohlížeče -->
-    <link rel="icon" type="image/png" sizes="256x256" href="icons/icon-256x256.png">
+    <!-- ===== Standardní favicony pro prohlížeče (PNG) ===== -->
+    
+    <!-- Různé velikosti ikon pro různá zařízení a kontexty -->
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
     
     <!-- Odkazy na fonty -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -320,7 +320,7 @@
 
         setupWorld(Reflector) {
             this.scene.fog = new this.THREE.Fog(0x101015, 15, 80);
-            this.scene.add(new this.THREE.AmbientLight(0x404040, 1.5));
+            this.scene.add(new this.THREE.AmbientLight(0x404040, 2.5));
 
             const playerGroup = new this.THREE.Group();
             const coreGeo = new this.THREE.SphereGeometry(0.2, 16, 8);
@@ -348,7 +348,7 @@
             this.floor = new Reflector(floorGeo, { clipBias: 0.003, textureWidth: window.innerWidth * window.devicePixelRatio, textureHeight: window.innerHeight * window.devicePixelRatio, color: 0x222222 });
             this.floor.rotation.x = -Math.PI / 2; this.floor.position.y = -1; this.scene.add(this.floor);
             
-            this.keyLight = new this.THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 4, 0.8);
+            this.keyLight = new this.THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
             this.scene.add(this.keyLight);
             this.scene.add(this.keyLight.target);
 

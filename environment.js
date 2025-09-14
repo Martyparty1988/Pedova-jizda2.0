@@ -8,48 +8,48 @@ export class Environment {
             matrix: { fogColor: 0x051005, ambientColor: 0x082008, baseColor: 0x39FF14, accentColor: 0x008080, particleColor: 0x39FF14 }
         };
 
-        const { mesh, wireframe, texture } = this.createFuturisticTunnel();
-        this.tunnel = mesh;
+        // Vytvoření tunelu a podlahy
+        const { tunnel, wireframe } = this.createFuturisticTunnel();
+        this.tunnel = tunnel;
         this.tunnelWireframe = wireframe;
-        this.tunnelTexture = texture;
-        
         this.floor = this.createFuturisticFloor();
+
+        // Vytvoření částic a světelných prstenců
         this.dustParticles = this.createDigitalParticles();
         this.lightRings = this.createLightRings(this.zoneThemes.aurora);
     }
 
     createFuturisticTunnel() {
-        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 8, 1, true);
-        const tunnelTex = this.createFuturisticHexTexture();
-        tunnelTex.wrapS = THREE.RepeatWrapping;
-        tunnelTex.wrapT = THREE.RepeatWrapping;
-        tunnelTex.repeat.set(8, 4);
-
+        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 6, 1, true);
+        
         const tunnelMat = new THREE.MeshStandardMaterial({
-            map: tunnelTex,
+            color: 0x000000,
             side: THREE.BackSide,
-            roughness: 0.4,
-            metalness: 0.8,
-            emissive: 0x111111,
+            roughness: 0.8,
+            metalness: 0.2
         });
-
-        const mesh = new THREE.Mesh(tunnelGeo, tunnelMat);
+        const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
+        // OPRAVA: Otočení válce, aby z něj byl horizontální tunel
+        tunnel.rotation.x = Math.PI / 2;
 
         const wireframeGeo = new THREE.EdgesGeometry(tunnelGeo);
         const wireframeMat = new THREE.LineBasicMaterial({ 
             color: this.zoneThemes.aurora.accentColor,
-            linewidth: 1,
+            linewidth: 1.5,
             transparent: true,
             opacity: 0.5,
             blending: THREE.AdditiveBlending
         });
         const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
+        // OPRAVA: Otočení kostry, aby seděla na tunel
+        wireframe.rotation.x = Math.PI / 2;
         
-        return { mesh, wireframe, texture: tunnelTex };
+        return { tunnel, wireframe };
     }
 
     createFuturisticFloor() {
-        const floorGeo = new THREE.PlaneGeometry(12, 200);
+        const floorGeo = new THREE.PlaneGeometry(12, 200, 1, 100);
+        
         const gridTexture = this.createFuturisticGridTexture();
         gridTexture.wrapS = THREE.RepeatWrapping;
         gridTexture.wrapT = THREE.RepeatWrapping;
@@ -58,14 +58,14 @@ export class Environment {
         const floorMat = new THREE.MeshBasicMaterial({
             map: gridTexture,
             transparent: true,
-            color: 0xAAAAFF, 
             blending: THREE.AdditiveBlending,
-            opacity: 0.2
+            opacity: 0.4
         });
         
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
-        floor.position.y = -1;
+        // Upravena pozice, aby seděla v šestiúhelníkovém tunelu
+        floor.position.y = -8.5; 
         
         return floor;
     }
@@ -74,83 +74,55 @@ export class Environment {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
         for (let i = 0; i < 500; i++) {
-            vertices.push( (Math.random() - 0.5) * 20, Math.random() * 10, (Math.random() - 0.5) * 200 );
+            vertices.push(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 200
+            );
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const particleTexture = new THREE.CanvasTexture(this.createParticleCanvas());
+        
         const material = new THREE.PointsMaterial({
-            size: 0.15, color: 0x00BFFF, transparent: true, opacity: 0.5,
-            map: particleTexture, blending: THREE.AdditiveBlending,
+            size: 0.1,
+            color: this.zoneThemes.aurora.particleColor,
+            transparent: true,
+            opacity: 0.7,
+            blending: THREE.AdditiveBlending,
         });
         return new THREE.Points(geometry, material);
     }
     
     createLightRings(theme) {
         const group = new THREE.Group();
-        const ringGeo = new THREE.RingGeometry(9.5, 9.8, 8, 1);
-        const mat1 = new THREE.MeshBasicMaterial({ color: theme.baseColor, side: THREE.DoubleSide, opacity: 0.7, transparent: true });
-        const mat2 = new THREE.MeshBasicMaterial({ color: theme.accentColor, side: THREE.DoubleSide, opacity: 0.7, transparent: true });
+        const ringGeo = new THREE.TorusGeometry(9.5, 0.05, 8, 48);
+        const mat1 = new THREE.MeshBasicMaterial({ color: theme.baseColor, side: THREE.DoubleSide });
+        const mat2 = new THREE.MeshBasicMaterial({ color: theme.accentColor, side: THREE.DoubleSide });
 
         for (let i = 0; i < 10; i++) {
             const ring = new THREE.Mesh(ringGeo, (i % 2 === 0) ? mat1 : mat2);
-            ring.rotation.x = Math.PI / 2;
+            // OPRAVA: Správná orientace prstenců
+            // ring.rotation.x = Math.PI / 2; // Toto už není potřeba, Torus je orientován správně
             ring.position.z = -i * 20;
             group.add(ring);
         }
         return group;
     }
 
-    createFuturisticHexTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256; canvas.height = 256;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#050810';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'rgba(0, 191, 255, 0.2)';
-        ctx.lineWidth = 2;
-        const hexSize = 32;
-        const hexHeight = hexSize * Math.sqrt(3);
-        for (let row = -1; row < canvas.height / hexHeight + 1; row++) {
-            for (let col = -1; col < canvas.width / (hexSize * 1.5) + 1; col++) {
-                let x = col * hexSize * 1.5;
-                let y = row * hexHeight;
-                if (col % 2 === 1) y += hexHeight / 2;
-                ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
-                    const angle = (Math.PI / 3) * i;
-                    ctx.lineTo(x + hexSize * Math.cos(angle), y + hexSize * Math.sin(angle));
-                }
-                ctx.closePath();
-                ctx.stroke();
-            }
-        }
-        return new THREE.CanvasTexture(canvas);
-    }
-
     createFuturisticGridTexture() {
         const canvas = document.createElement('canvas');
-        canvas.width = 128; canvas.height = 128;
+        canvas.width = 64; canvas.height = 64;
         const ctx = canvas.getContext('2d');
-        const gradient = ctx.createLinearGradient(0, 0, 0, 128);
-        gradient.addColorStop(0, 'rgba(0, 191, 255, 0.7)');
-        gradient.addColorStop(0.5, 'rgba(0, 191, 255, 0.2)');
-        gradient.addColorStop(1, 'rgba(0, 191, 255, 0.0)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, 128, 128);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+        ctx.fillRect(0, 0, 64, 64);
+        ctx.strokeStyle = 'rgba(0, 191, 255, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 32); ctx.lineTo(64, 32);
+        ctx.moveTo(32, 0); ctx.lineTo(32, 64);
+        ctx.stroke();
         return new THREE.CanvasTexture(canvas);
     }
-
-    createParticleCanvas() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32; canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(16, 16, 16, 0, Math.PI * 2);
-        ctx.fill();
-        return canvas;
-    }
-
+    
     setZone(zone, scene, ambientLight) {
         const theme = this.zoneThemes[zone];
         if (!theme) return;
@@ -164,27 +136,27 @@ export class Environment {
     }
 
     update(moveZ, playerPosition, time) {
-        this.tunnelTexture.offset.y -= moveZ * 0.01;
-        
         const rotationSpeed = 0.1;
+        // OPRAVA: Rotace kolem osy Z (vlastní osa tunelu po otočení)
         const rotation = -time * rotationSpeed;
         this.tunnel.rotation.z = rotation;
-        this.lightRings.rotation.z = rotation;
         this.tunnelWireframe.rotation.z = rotation;
+        // Prstence nyní existují ve svém vlastním prostoru, neotáčíme je s tunelem
+        // this.lightRings.rotation.z = rotation; 
 
-        this.tunnelWireframe.material.opacity = 0.3 + Math.sin(time * 3) * 0.2;
-
-        this.dustParticles.position.z += moveZ * 0.5;
-        if (this.dustParticles.position.z > playerPosition.z) {
-            this.dustParticles.position.z -= 100;
-        }
+        this.tunnelWireframe.material.opacity = 0.4 + Math.sin(time * 5) * 0.2;
 
         this.lightRings.children.forEach(ring => {
-            ring.position.z += moveZ * 1.2 + 0.1; 
+            ring.position.z += moveZ; 
             if (ring.position.z > playerPosition.z + 20) {
                 ring.position.z -= 200;
             }
         });
+
+        this.dustParticles.position.z += moveZ * 0.8;
+         if (this.dustParticles.position.z > playerPosition.z + 100) {
+            this.dustParticles.position.z -= 200;
+        }
     }
 }
 

@@ -1,5 +1,5 @@
-// Název cache - změňte pro invalidaci a novou instalaci
-const CACHE_NAME = 'pedrova-jizda-cache-v4';
+// Název cache - změněno pro invalidaci a novou instalaci
+const CACHE_NAME = 'pedrova-jizda-cache-v5'; 
 // Seznam všech souborů, které jsou potřeba pro offline běh
 const assetsToCache = [
   './',
@@ -8,11 +8,16 @@ const assetsToCache = [
   'style.css',
   'main.js',
   'game-core.js',
-  'game-3d.js',
+  'game-3d.js', // Tento soubor stále existuje, i když je menší
   'game-ui.js',
   'game-audio.js',
   'game-logic.js',
   'game-assets.js',
+  // ZMĚNA: Přidány nové soubory pro 3D logiku
+  'player.js',
+  'environment.js',
+  'gameObjectFactory.js',
+  // Ikony
   'icons/icon-512x512.png',
   'icons/icon-256x256.png',
   'icons/icon-192x192.png',
@@ -81,4 +86,3 @@ self.addEventListener('fetch', event => {
     })
   );
 });
-

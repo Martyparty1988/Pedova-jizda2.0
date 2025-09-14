@@ -12,9 +12,6 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,700;1,400&family=Teko:wght@400;600&display=swap" rel="stylesheet">
@@ -24,20 +21,11 @@
 
     <div id="collision-flash"></div>
 
-    <div id="loading-screen" class="screen">
-        <div class="glass-panel">
-            <h1 class="cyber-title">PEDROVA JÍZDA</h1>
-            <div class="loading-spinner"></div>
-            <div class="loading-text" id="loading-text">Hledám žílu...</div>
-        </div>
-    </div>
-
     <div id="main-menu" class="screen active">
         <div class="menu-content">
             <div class="title-glitch-wrapper">
                 <h1 class="cyber-title menu-title" data-text="PEDROVA JÍZDA">PEDROVA JÍZDA</h1>
             </div>
-            <!-- OPRAVA: Vrácen původní podtitul -->
             <p class="menu-subtitle">STOKY VOLAJÍ</p>
             
             <div id="menu-loading-container" class="menu-loading-container">
@@ -45,7 +33,6 @@
                 <div class="loading-text" id="menu-loading-text"></div>
             </div>
 
-            <!-- OPRAVA: Vrácen původní text tlačítka -->
             <button class="cyber-btn menu-play-btn" id="play-btn" disabled>
                 <span>💉 DÁT SI</span>
             </button>
@@ -57,12 +44,17 @@
         <div class="game-hud">
             <div class="hud-panel">
                 <div class="cyber-score" id="current-score">0</div>
+                <!-- Přidáno počítadlo předmětů -->
+                <div class="collectible-display">
+                    <span class="collectible-icon">💉</span>
+                    <span class="collectible-count" id="collectible-count">0</span>
+                </div>
                 <div class="lives-container" id="lives-container"></div>
             </div>
             <div class="hud-panel"><button id="pause-btn">||</button></div>
         </div>
         <div class="skill-indicator">
-            <div id="skill-doubleJump" class="skill-btn">TRIK</div>
+            <div id="skill-superJump" class="skill-btn">SKOK+</div>
             <div id="skill-dash" class="skill-btn">BOOST</div>
         </div>
         <div id="quote-display" class="quote-display"><div id="quote-text" class="quote-text"></div></div>
@@ -90,7 +82,7 @@
             </div>
 
             <div id="ai-summary-container" class="ai-summary-container">
-                <h3 class="ai-summary-title">ZHODNOCENÍ JÍZDY</h3>
+                <h3 class="ai-summary-title">ZHODNOCENÍ ABSŤÁKU</h3>
                 <div id="ai-summary-spinner" class="loading-spinner"></div>
                 <p id="ai-summary-text"></p>
             </div>
@@ -107,11 +99,6 @@
         <div class="glass-panel">
             <h2 style="color:var(--junkie-magenta)">Motor selhal</h2>
             <p>Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
-            <ul>
-                <li>Zkus to restartovat (aktualizuj prohlížeč).</li>
-                <li>Šáhni do nastavení a zapni "Hardwarovou akceleraci".</li>
-                <li>Možná máš starý matroš (ovladače grafiky).</li>
-            </ul>
         </div>
     </div>
 

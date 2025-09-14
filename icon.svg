@@ -1,29 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <!-- Filtr pro neonový glow efekt -->
-   i to predelat do profi ikony, tohle je moc amatersky
-Rozumím! Pokud chceš z tohoto SVG udělat „profi“ ikonu, doporučuji následující úpravy pro moderní a profesionální vzhled, jaký očekáváš od kvalitních launcher ikon:
-
-Hlavní doporučení pro profi ikonu:
-
-Udržet jednodušší, srozumitelný symbol – méně křivek a detailů pro lepší čitelnost i v malých rozměrech.
-
-Zvětšit kontrast mezi objekty, ideálně použít kombinaci 2–3 výrazných barev (např. tmavé pozadí + světlá stříkačka + akcentní neon).
-
-Upravit proporce tak, aby hlavní objekt (stříkačka) byl jasně dominantní a opticky vycentrovaný.
-
-Omezit efekt „neon-glow“ na decentní rámeček kolem hlavního prvku; potlačit přílišné rozpití.
-
-Zaoblit detaily a hrany pro moderní dojem (v duchu materiál designu 2026).
-
-Přidat jemný stín nebo zvýraznění pro 3D efekt (ne však přehnaně).
-
-Ikonu navrhnout do perfektního čtverce s bezpečným okrajem (padding).
-
-Návrh nové SVG ikony (včetně barev, proporcí a jednoduchého rámečku):
-xml
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
     <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
       <feGaussianBlur stdDeviation="2.2" result="blur"/>
       <feMerge>
@@ -54,3 +30,4 @@ xml
   <!-- Decentní stín -->
   <ellipse cx="52" cy="73" rx="14" ry="3" fill="#000" opacity="0.15"/>
 </svg>
+

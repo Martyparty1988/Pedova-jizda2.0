@@ -3,7 +3,6 @@ import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/j
 import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
-
 import { Player } from './player.js';
 import { Environment } from './environment.js';
 import { GameObjectFactory } from './gameObjectFactory.js';
@@ -19,7 +18,8 @@ export class Game3D {
         this.currentZone = 'aurora';
         this.zoneLength = 2000;
         this.trailPoints = [];
-        this.introAnimation = { active: false, timer: 0, duration: 1.5 };
+        // OPRAVA: Úvodní animace úplně odstraněna
+        // this.introAnimation = { active: false, timer: 0, duration: 1.5 };
     }
 
     async init() {
@@ -48,6 +48,7 @@ export class Game3D {
     setupPostProcessing() {
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.camera));
+
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.1);
         composer.addPass(bloomPass);
 
@@ -56,6 +57,7 @@ export class Game3D {
             vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
             fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; varying vec2 vUv; void main() { vec4 color = texture2D( tDiffuse, vUv ); float vig = 1.0 - smoothstep(0.0, vignette, length(vUv - 0.5)); gl_FragColor = color * vig; }`
         };
+
         const shaderPass = new ShaderPass(customShader);
         composer.addPass(shaderPass);
         this.composer = composer;
@@ -71,14 +73,11 @@ export class Game3D {
         this.scene.fog = new THREE.Fog(0x050810, 15, 80);
         this.ambientLight = new THREE.AmbientLight(0x080820, 2.5);
         this.scene.add(this.ambientLight);
-
         this.scene.add(this.player.mesh);
         this.player.mesh.visible = false;
         
         this.scene.add(this.environment.tunnel);
-        // OPRAVA: Přidáme do scény novou viditelnou kostru tunelu
         this.scene.add(this.environment.tunnelWireframe);
-        
         this.scene.add(this.environment.floor);
         this.scene.add(this.environment.dustParticles);
         this.scene.add(this.environment.lightRings);
@@ -109,10 +108,17 @@ export class Game3D {
         this.player.mesh.rotation.set(0, 0, 0);
         this.currentZone = 'aurora';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+
         this.trail.geometry.setIndex([]);
         this.trail.geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
-        this.introAnimation.active = true;
-        this.introAnimation.timer = 0;
+
+        // OPRAVA: Úvodní animace odstraněna - kamera hned na správné pozici
+        // this.introAnimation.active = true;
+        // this.introAnimation.timer = 0;
+        
+        // Nastavit kameru rovnou na finální pozici
+        this.camera.position.set(0, 3, 10);
+        this.camera.lookAt(0, 0, 0);
     }
     
     updateMenuBackground(delta) {
@@ -127,6 +133,7 @@ export class Game3D {
     
     update(gameState, targetX, delta) {
         const totalTime = this.clock.getElapsedTime();
+
         this.player.mesh.position.y = gameState.playerY;
         this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
         this.player.update(delta);
@@ -163,6 +170,7 @@ export class Game3D {
         } else {
             this.player.mesh.visible = true;
         }
+
         this.shield.visible = gameState.hasShield;
         if (this.shield.visible) {
             this.shield.rotation.y += delta;
@@ -181,9 +189,9 @@ export class Game3D {
     updateSuperJumpEffect() {
         this.player.mesh.scale.y += (2.5 - this.player.mesh.scale.y) * 0.1;
         this.trail.visible = true;
+
         const trailLength = 20;
         this.trailPoints.push(this.player.mesh.position.clone());
-
         if (this.trailPoints.length > trailLength) this.trailPoints.shift();
         if (this.trailPoints.length < 2) return;
 
@@ -215,32 +223,21 @@ export class Game3D {
                     obj.movement.direction *= -1;
                 }
             }
+
             if (obj.type === 'collectible' && obj.mesh.userData.rotationSpeed) {
                 obj.mesh.rotation.y += obj.mesh.userData.rotationSpeed * delta;
             }
         }
     }
 
+    // OPRAVA: Odstraněna logika úvodní animace z updateCameraAndLights
     updateCameraAndLights(delta) {
         const playerPos = this.player.mesh.position;
-        if (this.introAnimation.active) {
-            this.introAnimation.timer += delta;
-            const progress = Math.min(this.introAnimation.timer / this.introAnimation.duration, 1);
-            const startPos = new THREE.Vector3(0, 8, playerPos.z + 12);
-            const endPos = new THREE.Vector3(playerPos.x * 0.5, playerPos.y + 3, playerPos.z + 10);
-            this.camera.position.lerpVectors(startPos, endPos, progress * progress);
-            
-            // OPRAVA: Donutíme kameru, aby se vždy dívala na hráče
-            this.camera.lookAt(playerPos);
-
-            if (progress >= 1) {
-                this.introAnimation.active = false;
-            }
-        } else {
-            this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
-            this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
-            this.camera.position.z = playerPos.z + 10;
-        }
+        
+        // Kamera vždy sleduje hráče bez úvodní animace
+        this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
+        this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
+        this.camera.position.z = playerPos.z + 10;
         
         this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
         this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
@@ -249,19 +246,23 @@ export class Game3D {
 
     triggerShieldBreakEffect() {
         if (!this.shield) return;
+
         const initialScale = 1;
         this.shield.scale.set(initialScale, initialScale, initialScale);
         let scale = initialScale;
+
         const animate = () => {
             scale += 0.5;
             this.shield.scale.set(scale, scale, scale);
             this.shield.material.opacity -= 0.1;
+
             if (this.shield.material.opacity > 0) requestAnimationFrame(animate);
             else {
                 this.shield.scale.set(initialScale, initialScale, initialScale);
                 this.shield.material.opacity = 0.3;
             }
         };
+
         animate();
     }
 
@@ -290,6 +291,7 @@ export class Game3D {
     
     checkCollisions() {
         if (!this.player.mesh.visible) return;
+
         const colliderSize = new THREE.Vector3(0.7, 0.7, 0.7);
         this.playerCollider.setFromCenterAndSize(this.player.mesh.position, colliderSize);
 
@@ -309,6 +311,7 @@ export class Game3D {
             const obj = this.gameObjects[i];
             if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
                 this.scene.remove(obj.mesh);
+
                 obj.mesh.traverse(child => {
                     if (child.geometry) child.geometry.dispose();
                     if (child.material) {
@@ -316,6 +319,7 @@ export class Game3D {
                         else child.material.dispose();
                     }
                 });
+
                 if (obj.type === 'obstacle') gameState.runStats.obstaclesDodged++;
                 this.gameObjects.splice(i, 1);
             }
@@ -324,10 +328,10 @@ export class Game3D {
 
     onWindowResize() {
         if (!this.camera || !this.renderer) return;
+
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 }
-

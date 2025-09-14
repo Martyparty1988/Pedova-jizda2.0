@@ -1,3 +1,5 @@
+// game-core.js
+
 import { GameUI } from './game-ui.js';
 import { Game3D } from './game-3d.js';
 import { GameLogic } from './game-logic.js';
@@ -40,37 +42,45 @@ class GameCore {
     }
 
     setupEventListeners() {
-        this.ui.elements['play-btn'].addEventListener('click', () => this.startGame());
-        this.ui.elements['restart-btn'].addEventListener('click', () => this.startGame());
-        this.ui.elements['menu-btn'].addEventListener('click', () => this.ui.showScreen('main-menu'));
-        this.ui.elements['pause-btn'].addEventListener('click', () => this.togglePause());
-        this.ui.elements['analyze-run-btn'].addEventListener('click', () => this.ui.analyzeRun());
+        const addListener = (id, event, handler) => {
+            const element = this.ui.elements[id];
+            if (element) {
+                element.addEventListener(event, handler);
+            } else {
+                console.error(`Chyba: Element s ID '${id}' nebyl nalezen a nelze na něj navázat event listener.`);
+            }
+        };
+
+        addListener('play-btn', 'click', () => this.startGame());
+        addListener('restart-btn', 'click', () => this.startGame());
+        addListener('menu-btn', 'click', () => this.ui.showScreen('main-menu'));
+        addListener('pause-btn', 'click', () => this.togglePause());
+        addListener('analyze-run-btn', 'click', () => this.ui.analyzeRun());
 
         window.addEventListener('resize', () => this.threeD.onWindowResize());
         window.addEventListener('keydown', (e) => this.handleInput('keydown', e));
 
         const canvas = this.ui.elements['game-canvas'];
-        canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
-        canvas.addEventListener('touchend', (e) => this.handleInput('touchend', e), { passive: false });
+        if (canvas) {
+            canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
+            canvas.addEventListener('touchend', (e) => this.handleInput('touchend', e), { passive: false });
+        } else {
+            console.error("Chyba: Element canvas s ID 'game-canvas' nebyl nalezen.");
+        }
     }
 
-    /**
-     * Spustí novou hru.
-     */
     startGame() {
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
         this.logic.resetSkills();
         this.threeD.reset();
-        this.ui.prepareForGame(this.logic.skills);
-        
+        this.ui.showScreen('game-screen');
+        this.ui.updateSkillUI(this.logic.skills);
+
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
     }
-    
-    /**
-     * Hlavní herní smyčka.
-     */
+
     gameLoop() {
         if (!this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
@@ -80,9 +90,6 @@ class GameCore {
         this.update(delta);
     }
 
-    /**
-     * Aktualizuje stav hry v každém snímku.
-     */
     update(delta) {
         this.logic.updateScore(this.gameState, delta);
         this.ui.updateScore(this.gameState.score);
@@ -93,9 +100,6 @@ class GameCore {
         this.threeD.update(this.gameState, targetX, delta);
     }
 
-    /**
-     * Zpracovává kolize detekované v 3D modulu.
-     */
     handleCollision(type, index) {
         if (type === 'obstacle') {
             this.gameOver();
@@ -108,26 +112,20 @@ class GameCore {
         }
     }
 
-    /**
-     * Ukončí hru a zobrazí statistiky.
-     */
     gameOver() {
         if (!this.gameState.isPlaying) return;
         this.audio.vibrate([100, 50, 100]);
         this.gameState.isPlaying = false;
         this.audio.playSound('collision');
         this.ui.showQuote('collision');
-        
+
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
         this.ui.showGameOver(finalStats);
     }
-    
-    /**
-     * Zpracovává vstupy od hráče (klávesnice, dotyk).
-     */
+
     handleInput(type, event) {
-        if (!this.gameState.isPlaying || this.gameState.isPaused) return;
+        if (!this.gameState || !this.gameState.isPlaying || this.gameState.isPaused) return;
 
         if (type === 'touchstart') {
             event.preventDefault();
@@ -153,9 +151,6 @@ class GameCore {
         }
     }
 
-    /**
-     * Provede skok nebo dvojskok.
-     */
     doJump() {
         if (this.logic.canJump(this.gameState)) {
             this.gameState.playerVelocityY = JUMP_FORCE;
@@ -174,9 +169,6 @@ class GameCore {
         }
     }
 
-    /**
-     * Provede rychlý pohyb vpřed (dash).
-     */
     doDash() {
         if (this.logic.canDash(this.gameState)) {
             this.audio.vibrate(75);
@@ -190,11 +182,8 @@ class GameCore {
         }
     }
 
-    /**
-     * Přepne stav pauzy.
-     */
     togglePause() {
-        if (!this.gameState.isPlaying) return;
+        if (!this.gameState || !this.gameState.isPlaying) return;
         this.gameState.isPaused = !this.gameState.isPaused;
         this.ui.togglePause(this.gameState.isPaused);
     }

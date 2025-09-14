@@ -12,7 +12,7 @@ export class GameUI {
         const ids = [
             'loading-screen', 'main-menu', 'game-screen', 'game-over', 'play-btn', 
             'restart-btn', 'menu-btn', 'current-score', 'final-score', 'best-score', 
-            'game-time', 'pause-btn', 'skill-dash', 'loading-text', 
+            'game-time', 'pause-btn', 'skill-dash', 'loading-text', 'skill-superJump',
             'ai-summary-container', 'ai-summary-spinner', 'ai-summary-text', 
             'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 
             'webgl-fallback', 'game-canvas', 'lives-container',
@@ -100,7 +100,6 @@ export class GameUI {
         for (const [skillName, skillData] of Object.entries(skills)) {
             const el = this.elements[`skill-${skillName}`];
             if (!el) continue;
-            // Zjednodušení logiky, protože 'doubleJump' již nepoužíváme
             el.classList.toggle('unlocked', skillData.unlocked);
             el.classList.toggle('cooldown', skillData.cooldown > 0);
         }

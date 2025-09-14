@@ -1,11 +1,13 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 /**
- * Třída pro vytvoření a správu herního hráče (stíhačky).
+ * Třída pro vytvoření a správu herního hráče (postava na hoverboardu).
  */
 export class Player {
     constructor() {
         this.mesh = this.createPlayerMesh();
+        // ZMĚNA: Uchováváme si referenci na rotaci pro animaci triku
+        this.trickRotation = 0; 
     }
 
     /**
@@ -17,63 +19,45 @@ export class Player {
 
         // Materiály
         const bodyMat = new THREE.MeshStandardMaterial({
-            color: 0xcccccc,
-            metalness: 0.8,
-            roughness: 0.3,
+            color: 0xcccccc, metalness: 0.8, roughness: 0.3,
         });
-        const wingMat = new THREE.MeshStandardMaterial({
-            color: 0xaaaaaa,
-            metalness: 0.9,
-            roughness: 0.4,
+        const boardMat = new THREE.MeshStandardMaterial({
+            color: 0x333333, metalness: 0.9, roughness: 0.4,
         });
         const engineMat = new THREE.MeshPhongMaterial({
-            color: 0xff007f, // Zářivá magenta
-            emissive: 0xff007f,
-            emissiveIntensity: 3,
-        });
-        const headlightMat = new THREE.MeshPhongMaterial({
-            color: 0x00BFFF,
-            emissive: 0x00BFFF,
-            emissiveIntensity: 5,
+            color: 0xff007f, emissive: 0xff007f, emissiveIntensity: 3,
         });
 
-        // Trup lodi - OPRAVA: Nahrazeno CapsuleGeometry za CylinderGeometry
-        const bodyGeo = new THREE.CylinderGeometry(0.3, 0.5, 2.5, 16);
-        const mainBody = new THREE.Mesh(bodyGeo, bodyMat);
-        mainBody.rotation.x = Math.PI / 2;
-        playerGroup.add(mainBody);
+        // --- Hoverboard ---
+        const boardGeo = new THREE.BoxGeometry(1.5, 0.2, 3.5);
+        const board = new THREE.Mesh(boardGeo, boardMat);
+        playerGroup.add(board);
 
-        // Křídla
-        const wingShape = new THREE.Shape();
-        wingShape.moveTo(0, 0);
-        wingShape.lineTo(1.5, -0.5);
-        wingShape.lineTo(1.5, -1);
-        wingShape.lineTo(0, -0.8);
-        const wingGeo = new THREE.ExtrudeGeometry(wingShape, { depth: 0.1, bevelEnabled: false });
-
-        const leftWing = new THREE.Mesh(wingGeo, wingMat);
-        leftWing.rotation.y = Math.PI;
-        leftWing.position.set(-0.2, 0.3, 0.5);
-        playerGroup.add(leftWing);
-
-        const rightWing = new THREE.Mesh(wingGeo, wingMat);
-        rightWing.position.set(0.2, 0.3, 0.5);
-        playerGroup.add(rightWing);
-
-        // Motor
-        const engineGeo = new THREE.CylinderGeometry(0.25, 0.15, 0.5, 12);
+        // --- Tryska / Motor ---
+        const engineGeo = new THREE.CylinderGeometry(0.3, 0.2, 0.6, 12);
         const engine = new THREE.Mesh(engineGeo, engineMat);
-        engine.position.z = 1.2;
+        engine.position.z = 1.8; // Posunout na konec desky
         engine.rotation.x = Math.PI / 2;
-        playerGroup.add(engine);
+        board.add(engine);
+        // ZMĚNA: Uložíme si referenci na motor pro animaci boostu
+        this.engine = engine; 
 
-        // Přední světlo
-        const headlightGeo = new THREE.SphereGeometry(0.1, 16, 8);
-        const headlight = new THREE.Mesh(headlightGeo, headlightMat);
-        headlight.position.z = -1.3;
-        playerGroup.add(headlight);
+        // --- Postava ---
+        const riderGroup = new THREE.Group();
+        board.add(riderGroup);
+        riderGroup.position.y = 0.8; // Postava stojí na desce
 
-        playerGroup.scale.set(0.6, 0.6, 0.6);
+        const torsoGeo = new THREE.BoxGeometry(0.8, 1.2, 0.5);
+        const torso = new THREE.Mesh(torsoGeo, bodyMat);
+        riderGroup.add(torso);
+
+        const headGeo = new THREE.SphereGeometry(0.35, 16, 16);
+        const head = new THREE.Mesh(headGeo, bodyMat);
+        head.position.y = 0.9;
+        riderGroup.add(head);
+
+        // --- Finální úpravy ---
+        playerGroup.scale.set(0.5, 0.5, 0.5);
         playerGroup.position.y = -0.6; // Startovní pozice
 
         return playerGroup;
@@ -84,7 +68,8 @@ export class Player {
      */
     update() {
         const t = Date.now() * 0.002;
-        this.mesh.position.y = -0.6 + Math.sin(t) * 0.05;
-        this.mesh.rotation.x = Math.cos(t) * 0.02;
+        // ZMĚNA: Přizpůsobená animace vznášení se
+        this.mesh.position.y = -0.6 + Math.sin(t * 1.5) * 0.08;
+        this.mesh.rotation.z = Math.cos(t) * 0.03;
     }
 }

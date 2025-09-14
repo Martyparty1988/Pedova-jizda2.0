@@ -8,7 +8,6 @@ const HLASKY_JSON = {
         "Je mi blbě, ale absťák mě stejně donutí jet.",
         "Pražský ráno, včerejší jízda už působí jen ve vzpomínkách."
     ],
-    // ZMĚNA: Nové hlášky pro skok
     "jump": [
         "Odrazit se ode dna.",
         "Na chvíli nad věcí.",
@@ -16,7 +15,6 @@ const HLASKY_JSON = {
         "Letím jak v rauši, dolů to bolí víc.",
         "Beznaděj pod deskou, perník v hlavě."
     ],
-    // ZMĚNA: Kategorie 'frontflip' přejmenována na 'trik' s novými hláškami
     "trik": [
         "Styl za extra body.",
         "Tohle v manuálu nebylo.",
@@ -24,13 +22,19 @@ const HLASKY_JSON = {
         "Ještě otočka, ať si dealer všimne.",
         "Flip stylem \"co kdyby to byla poslední jízda\"."
     ],
-    // ZMĚNA: Kategorie 'slide' přejmenována na 'boost' s novými hláškami
     "boost": [
         "Sklouznout se po absťáku.",
         "Jedu si pro další dávku rychlosti.",
         "Plnej plyn, žádný brzdy.",
         "Po zemi hledám víc než drobky.",
         "Pálím to tunelem."
+    ],
+    // ZMĚNA: Nová kategorie hlášek pro super skok
+    "super_jump": [
+        "Letím si pro dávku stylu!",
+        "Vzhůru do nebes!",
+        "Tohle bude bolet... při dopadu.",
+        "Maximální odraz!"
     ],
     "collision": [
         "Narazil jsem, stejně jako s každou dávkou.",

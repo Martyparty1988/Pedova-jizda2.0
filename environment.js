@@ -8,10 +8,10 @@ export class Environment {
             matrix: { fogColor: 0x051005, ambientColor: 0x082008, baseColor: 0x39FF14, accentColor: 0x008080, particleColor: 0x39FF14 }
         };
 
-        // VYLEPŠENÍ: Vytvoříme tunel i jeho viditelnou kostru
-        const { mesh, wireframe } = this.createFuturisticTunnel();
+        const { mesh, wireframe, texture } = this.createFuturisticTunnel();
         this.tunnel = mesh;
         this.tunnelWireframe = wireframe;
+        this.tunnelTexture = texture;
         
         this.floor = this.createFuturisticFloor();
         this.dustParticles = this.createDigitalParticles();
@@ -35,7 +35,6 @@ export class Environment {
 
         const mesh = new THREE.Mesh(tunnelGeo, tunnelMat);
 
-        // VYLEPŠENÍ: Vytvoření viditelné, zářící kostry tunelu
         const wireframeGeo = new THREE.EdgesGeometry(tunnelGeo);
         const wireframeMat = new THREE.LineBasicMaterial({ 
             color: this.zoneThemes.aurora.accentColor,
@@ -51,7 +50,6 @@ export class Environment {
 
     createFuturisticFloor() {
         const floorGeo = new THREE.PlaneGeometry(12, 200);
-        // Optimalizace: Používáme obyčejný Mesh místo náročného Reflectoru
         const gridTexture = this.createFuturisticGridTexture();
         gridTexture.wrapS = THREE.RepeatWrapping;
         gridTexture.wrapT = THREE.RepeatWrapping;
@@ -60,7 +58,6 @@ export class Environment {
         const floorMat = new THREE.MeshBasicMaterial({
             map: gridTexture,
             transparent: true,
-            // Napodobení odrazu pomocí gradientu v textuře
             color: 0xAAAAFF, 
             blending: THREE.AdditiveBlending,
             opacity: 0.2
@@ -163,19 +160,18 @@ export class Environment {
             ring.material.color.setHex(i % 2 === 0 ? theme.baseColor : theme.accentColor);
         });
         this.dustParticles.material.color.setHex(theme.particleColor);
-        // VYLEPŠENÍ: Změníme i barvu kostry tunelu
         this.tunnelWireframe.material.color.setHex(theme.accentColor);
     }
 
     update(moveZ, playerPosition, time) {
+        this.tunnelTexture.offset.y -= moveZ * 0.01;
+        
         const rotationSpeed = 0.1;
         const rotation = -time * rotationSpeed;
         this.tunnel.rotation.z = rotation;
         this.lightRings.rotation.z = rotation;
-        // VYLEPŠENÍ: Kostra se otáčí spolu s tunelem
         this.tunnelWireframe.rotation.z = rotation;
 
-        // VYLEPŠENÍ: Kostra tunelu jemně pulzuje
         this.tunnelWireframe.material.opacity = 0.3 + Math.sin(time * 3) * 0.2;
 
         this.dustParticles.position.z += moveZ * 0.5;

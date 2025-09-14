@@ -13,6 +13,7 @@ window.onload = () => {
     }
 
     // Inicializace a spuštění hry
-    new GameCore();
+    // OPRAVA: Vytvoříme instanci A ZAVOLÁME metodu init() pro spuštění načítání
+    const game = new GameCore();
+    game.init();
 };
-

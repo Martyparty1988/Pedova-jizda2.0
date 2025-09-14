@@ -20,10 +20,10 @@ class GameLogic {
             playerVelocityY: 0,
             jumpCount: 0,
             lane: 1,
+            // ZMĚNA: Přidán systém životů
             lives: 3,
-            maxLives: 3,
-            invincibilityTimer: 0,
-            // ZMĚNA: Přidán stav pro štít
+            maxLives: 5, // Maximální počet životů
+            invincibilityTimer: 0, // Časovač nesmrtelnosti po zásahu
             hasShield: false,
             runStats: {
                 jumps: 0,
@@ -43,6 +43,7 @@ class GameLogic {
 
     updateSkills(delta, onUpdate) {
         let needsUpdate = false;
+        // ZMĚNA: Používáme this.currentGameState, aby se časovač správně aktualizoval
         if (this.currentGameState && this.currentGameState.invincibilityTimer > 0) {
             this.currentGameState.invincibilityTimer -= delta * 1000;
         }
@@ -97,7 +98,6 @@ class GameLogic {
         }
     }
 
-    // ZMĚNA: Upraveno pro zpracování různých typů power-upů
     collectPowerup(gameState, index, gameObjects) {
         const obj = gameObjects[index];
         if (!obj || !obj.mesh.visible) return null;
@@ -109,6 +109,10 @@ class GameLogic {
 
         if (powerupType === 'shield') {
             gameState.hasShield = true;
+        } else if (powerupType === 'life') { // ZMĚNA: Přidána logika pro sebrání života
+            if (gameState.lives < gameState.maxLives) {
+                gameState.lives++;
+            }
         } else { // 'speed' je default
             gameState.score += 500;
             gameState.baseSpeed += 1;
@@ -125,13 +129,21 @@ class GameLogic {
         return powerupType;
     }
     
-    // ZMĚNA: Nová funkce pro spotřebování štítu
     consumeShield(gameState) {
         if (gameState.hasShield) {
             gameState.hasShield = false;
             return true;
         }
         return false;
+    }
+
+    // ZMĚNA: Nová funkce pro zpracování zásahu hráče
+    handlePlayerHit(gameState) {
+        gameState.lives--;
+        gameState.invincibilityTimer = 2000; // 2 sekundy nesmrtelnosti
+
+        // Vrací true, pokud hráčovi došly životy
+        return gameState.lives <= 0;
     }
 
     getFinalStats(gameState) {
@@ -155,4 +167,3 @@ class GameLogic {
 }
 
 export { GameLogic };
-

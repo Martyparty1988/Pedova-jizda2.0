@@ -18,37 +18,39 @@
     </linearGradient>
   </defs>
   
-  <!-- Pozadí a tunel -->
+  <!-- Pozadí -->
   <rect width="100" height="100" rx="24" fill="url(#bg)"/>
-  <ellipse cx="50" cy="80" rx="35" ry="14" fill="#2f3553" opacity=".38" filter="url(#neon)"/>
-  <ellipse cx="50" cy="36" rx="25" ry="9" fill="none" stroke="#00cff7" stroke-width="2" opacity=".36"/>
-  <path d="M42 38 Q50 50 50 80" stroke="#00cff7" stroke-width="1.2" opacity=".18" fill="none"/>
-  <path d="M58 38 Q50 50 50 80" stroke="#00cff7" stroke-width="1.2" opacity=".18" fill="none"/>
-  
-  <!-- Realističtější skateboard -->
-  <g transform="translate(0, 2)">
-    <path d="M38 70 L62 70 C64 70, 64 72, 62 74 L38 74 C36 74, 36 72, 38 70 Z" fill="#232b3a" stroke="#0ad6ff" stroke-width="1.2"/>
-    <rect x="42" y="73" width="16" height="2" fill="#181921" /> 
-    <ellipse cx="43" cy="76" rx="2.5" ry="1.5" fill="#ff007f"/>
-    <ellipse cx="57" cy="76" rx="2.5" ry="1.5" fill="#ff007f"/>
-    <ellipse cx="52" cy="85" rx="14" ry="3" fill="#000" opacity="0.2"/>
-  </g>
 
-  <!-- Realističtější stříkačka -->
-  <g transform="rotate(10 50 50) translate(0, -5)" filter="url(#neon)">
-    <!-- Tělo stříkačky -->
-    <rect x="44" y="50" width="12" height="22" rx="4" fill="#0ad6ff" stroke="#fff" stroke-width="1.5"/>
-    <!-- Tekutina uvnitř -->
-    <rect x="45.5" y="58" width="9" height="12" rx="2" fill="#ff007f" opacity=".8"/>
-    <!-- Odlesk na skle -->
-    <rect x="45" y="51" width="10" height="20" rx="3" fill="url(#syringe-sheen)"/>
-    <!-- Píst -->
+  <!-- Stín pod objekty -->
+  <ellipse cx="50" cy="72" rx="25" ry="4" fill="#000" opacity="0.2"/>
+
+  <!-- Skupina pro skateboard a stříkačku -->
+  <g transform="translate(0, -10)" filter="url(#neon)">
+    <!-- Skateboard -->
     <g>
-      <rect x="47" y="45" width="6" height="15" rx="1.5" fill="#eaf2fb" opacity="0.9"/>
-      <rect x="45" y="42" width="10" height="4" rx="2" fill="#c0d4e3"/>
+      <path d="M32 68 L68 68 C70 68, 70 70, 68 72 L32 72 C30 72, 30 70, 32 68 Z" fill="#232b3a" stroke="#0ad6ff" stroke-width="1.5"/>
+      <rect x="38" y="71" width="24" height="2.5" fill="#181921"/> 
+      <ellipse cx="41" cy="74" rx="3" ry="1.8" fill="#ff007f"/>
+      <ellipse cx="59" cy="74" rx="3" ry="1.8" fill="#ff007f"/>
     </g>
-    <!-- Jehla -->
-    <path d="M50 50 L50 28 L49 25 L51 25 Z" fill="#eaf2fb"/>
+
+    <!-- Stříkačka -->
+    <g transform="translate(0, -1)">
+        <!-- Tělo stříkačky -->
+        <rect x="25" y="60" width="50" height="10" rx="3" fill="#0ad6ff" stroke="#fff" stroke-width="1.5"/>
+        <!-- Tekutina uvnitř -->
+        <rect x="27" y="62" width="30" height="6" rx="1.5" fill="#ff007f" opacity=".8"/>
+        <!-- Odlesk na skle -->
+        <rect x="26" y="61" width="48" height="8" rx="2" fill="url(#syringe-sheen)"/>
+        <!-- Píst -->
+        <g>
+          <rect x="55" y="62.5" width="22" height="5" rx="1.5" fill="#eaf2fb" opacity="0.9"/>
+          <!-- Úchyt pístu (kolečko na konci) -->
+          <rect x="77" y="60.5" width="5" height="9" rx="2" fill="#c0d4e3"/>
+        </g>
+        <!-- Jehla -->
+        <path d="M15 65 L25 65 L23 62 L25 65 L23 68 Z" fill="#eaf2fb"/>
+    </g>
   </g>
 </svg>
 

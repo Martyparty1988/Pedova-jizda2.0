@@ -13,7 +13,7 @@ export class Environment {
         this.tunnel = tunnel;
         this.tunnelWireframe = wireframe;
 
-        // OPRAVA: Vytvoření podlahy ve středu tunelu
+        // OPRAVA: Vytvoření podlahy přesně vycentrované s tunelem
         this.floor = this.createGridFloor();
 
         // Vytvoření částic a světelných prstenců
@@ -22,7 +22,8 @@ export class Environment {
     }
 
     createFuturisticTunnel() {
-        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 6, 1, true);
+        // OPRAVA: Tunel se středem na Y=0 (poloměr 10, takže sahá od Y=-10 do Y=+10)
+        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 8, 1, true);
         
         const tunnelMat = new THREE.MeshStandardMaterial({
             color: 0x000000,
@@ -32,33 +33,38 @@ export class Environment {
         });
 
         const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
+        // OPRAVA: Tunel otočený kolem osy Z (ne X), aby byl správně orientovaný
         tunnel.rotation.x = Math.PI / 2;
+        tunnel.position.y = 0; // Ujistit se, že je vycentrovaný na Y=0
 
         const wireframeGeo = new THREE.EdgesGeometry(tunnelGeo);
         const wireframeMat = new THREE.LineBasicMaterial({ 
             color: this.zoneThemes.aurora.accentColor,
-            linewidth: 1.5,
+            linewidth: 2.0,
             transparent: true,
-            opacity: 0.5,
+            opacity: 0.6,
             blending: THREE.AdditiveBlending
         });
 
         const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
         wireframe.rotation.x = Math.PI / 2;
+        wireframe.position.y = 0; // Také vycentrovat wireframe
         
         return { tunnel, wireframe };
     }
 
-    // OPRAVA: Podlaha uprostřed tunelu místo na dně
+    // OPRAVA: Podlaha přesně ve středu tunelu
     createGridFloor() {
         const size = 200;
-        const divisions = 50;
+        const divisions = 40;
         
-        // Použití GridHelper pro jednoduchou a efektivní mřížku
-        const gridHelper = new THREE.GridHelper(size, divisions, 0x00aacc, 0x333333);
+        // GridHelper pro mřížku podlahy
+        const gridHelper = new THREE.GridHelper(size, divisions, 0x00aacc, 0x444444);
         
-        // OPRAVA: Pozice mřížky uprostřed tunelu (tunel má poloměr 10)
-        gridHelper.position.y = -2.5;  // Místo -8.5, teď je víc ve středu
+        // OPRAVA: Rotace tak, aby byla podlaha vodorovně ve středu tunelu
+        gridHelper.rotation.x = Math.PI / 2;  // Otočit o 90° kolem X
+        gridHelper.position.y = 0;           // Přesně na střed tunelu (Y=0)
+        gridHelper.position.z = 0;           // Vycentrovat i na Z
         
         return gridHelper;
     }
@@ -67,21 +73,24 @@ export class Environment {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
 
-        for (let i = 0; i < 500; i++) {
-            vertices.push(
-                (Math.random() - 0.5) * 20,
-                (Math.random() - 0.5) * 20,
-                (Math.random() - 0.5) * 200
-            );
+        // OPRAVA: Částice rovnoměrně rozložené uvnitř tunelu (poloměr < 10)
+        for (let i = 0; i < 400; i++) {
+            const radius = Math.random() * 9; // Poloměr menší než tunel
+            const angle = Math.random() * Math.PI * 2;
+            const x = Math.cos(angle) * radius;
+            const y = Math.sin(angle) * radius;
+            const z = (Math.random() - 0.5) * 200;
+            
+            vertices.push(x, y, z);
         }
 
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         
         const material = new THREE.PointsMaterial({
-            size: 0.1,
+            size: 0.15,
             color: this.zoneThemes.aurora.particleColor,
             transparent: true,
-            opacity: 0.7,
+            opacity: 0.8,
             blending: THREE.AdditiveBlending,
         });
 
@@ -90,13 +99,25 @@ export class Environment {
     
     createLightRings(theme) {
         const group = new THREE.Group();
-        const ringGeo = new THREE.TorusGeometry(9.5, 0.05, 8, 48);
-        const mat1 = new THREE.MeshBasicMaterial({ color: theme.baseColor, side: THREE.DoubleSide });
-        const mat2 = new THREE.MeshBasicMaterial({ color: theme.accentColor, side: THREE.DoubleSide });
+        // OPRAVA: Prstence mírně menší než tunel (radius 9 místo 9.5)
+        const ringGeo = new THREE.TorusGeometry(9, 0.08, 8, 48);
+        const mat1 = new THREE.MeshBasicMaterial({ 
+            color: theme.baseColor, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.8
+        });
+        const mat2 = new THREE.MeshBasicMaterial({ 
+            color: theme.accentColor, 
+            side: THREE.DoubleSide,
+            transparent: true,
+            opacity: 0.8
+        });
 
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 12; i++) {
             const ring = new THREE.Mesh(ringGeo, (i % 2 === 0) ? mat1 : mat2);
-            ring.position.z = -i * 20;
+            ring.position.z = -i * 15;
+            ring.position.y = 0; // Vycentrovat na Y=0
             group.add(ring);
         }
 
@@ -119,21 +140,24 @@ export class Environment {
     }
 
     update(moveZ, playerPosition, time) {
-        const rotationSpeed = 0.1;
+        const rotationSpeed = 0.12;
         const rotation = -time * rotationSpeed;
 
+        // Rotace tunelu kolem Z osy
         this.tunnel.rotation.z = rotation;
         this.tunnelWireframe.rotation.z = rotation;
-        this.tunnelWireframe.material.opacity = 0.4 + Math.sin(time * 5) * 0.2;
+        this.tunnelWireframe.material.opacity = 0.5 + Math.sin(time * 4) * 0.2;
 
+        // Update prstenců
         this.lightRings.children.forEach(ring => {
             ring.position.z += moveZ; 
-            if (ring.position.z > playerPosition.z + 20) {
-                ring.position.z -= 200;
+            if (ring.position.z > playerPosition.z + 25) {
+                ring.position.z -= 180;
             }
         });
 
-        this.dustParticles.position.z += moveZ * 0.8;
+        // Update částic
+        this.dustParticles.position.z += moveZ * 0.9;
         if (this.dustParticles.position.z > playerPosition.z + 100) {
             this.dustParticles.position.z -= 200;
         }

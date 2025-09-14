@@ -157,3 +157,16 @@
     <path d="M180 1130 C360 980 540 920 720 900" fill="none" stroke="#ff2bd6" stroke-width="6" stroke-linecap="round" stroke-opacity="0.85"/>
     <path d="M200 1160 C380 1010 560 960 740 940" fill="none" stroke="#12d6ff" stroke-width="4" stroke-linecap="round" stroke-opacity="0.6"/>
   </g>
+
+  <!-- extra tiny speed streaks near wheels -->
+  <g stroke="#00f0ff" stroke-width="3" stroke-linecap="round" filter="url(#glow)" opacity="0.6">
+    <path d="M480 1060 L520 1030"/>
+    <path d="M450 1090 L490 1060"/>
+  </g>
+
+  <!-- finishing vignette overlay -->
+  <rect x="0" y="0" width="100%" height="100%" fill="url(#vignette)" opacity="0.55"/>
+
+  <!-- optional signature dot (tiny) -->
+  <circle cx="980" cy="1500" r="6" fill="#ffffff" opacity="0.03"/>
+</svg>

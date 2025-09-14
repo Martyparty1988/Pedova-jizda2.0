@@ -6,6 +6,29 @@ class GameLogic {
         };
     }
 
+    getInitialGameState() {
+        return {
+            isPlaying: true,
+            isPaused: false,
+            isDashing: false,
+            score: 0,
+            speed: 8,
+            baseSpeed: 8,
+            maxSpeed: 30,
+            startTime: Date.now(),
+            playerY: -0.6,
+            playerVelocityY: 0,
+            jumpCount: 0,
+            lane: 1,
+            runStats: {
+                jumps: 0,
+                dashes: 0,
+                powerups: 0,
+                obstaclesDodged: 0
+            }
+        };
+    }
+
     resetSkills() {
         this.skills.doubleJump.unlocked = true;
         this.skills.dash.unlocked = true;
@@ -103,4 +126,3 @@ class GameLogic {
 }
 
 export { GameLogic };
-

@@ -3,42 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <title>Pedrova jízda</title>
-
-    <!-- Základní meta tagy pro responzivitu a zobrazení na celou obrazovku (včetně notche) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    
-    <!-- Popis aplikace pro vyhledávače a PWA -->
     <meta name="description" content="Procedurální underground runner v pražských stokách.">
-
-    <!-- PWA Manifest - klíčový soubor pro PWA funkčnost -->
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Barva lišty prohlížeče (status bar) -->
     <meta name="theme-color" content="#00AACC">
-
-    <!-- ===== iOS / Apple specifické meta tagy ===== -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Pedrova jízda">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
-
-    <!-- ===== Standardní favicony pro prohlížeče (PNG) ===== -->
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192x192.png">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16x16.png">
-    
-    <!-- Odkazy na fonty -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,700;1,400&family=Teko:wght@400;600&display=swap" rel="stylesheet">
-    
-    <!-- Odkaz na externí CSS soubor -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <!-- Všechny obrazovky hry -->
+    <div id="collision-flash"></div>
+
     <div id="loading-screen" class="screen active">
         <div class="glass-panel">
             <h1 class="cyber-title">PEDROVA JÍZDA</h1>
@@ -102,7 +87,6 @@
         </div>
     </div>
 
-    <!-- Hlavní vstupní bod aplikace -->
     <script type="module" src="main.js"></script>
 </body>
 </html>

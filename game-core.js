@@ -24,8 +24,8 @@ export class GameCore {
 
         this.lastSwipeUpTime = 0;
         this.lastJumpKeyPressTime = 0;
-        // VYLEPŠENÍ: Větší časové okno pro dvojité přejetí
-        this.doubleTapDelay = 450;
+        // OPRAVA: Větší časové okno pro dvojité přejetí
+        this.doubleTapDelay = 500;
     }
 
     async init() {
@@ -254,4 +254,3 @@ export class GameCore {
         this.ui.togglePause(this.gameState.isPaused);
     }
 }
-

@@ -1,5 +1,3 @@
-// game-core.js
-
 import { GameUI } from './game-ui.js';
 import { Game3D } from './game-3d.js';
 import { GameLogic } from './game-logic.js';
@@ -73,12 +71,13 @@ class GameCore {
     startGame() {
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
-        // ZMĚNA: Přidán nový stav pro animaci triku
         this.gameState.isDoingTrick = false; 
         this.logic.resetSkills();
         this.threeD.reset();
         this.ui.showScreen('game-screen');
         this.ui.updateSkillUI(this.logic.skills);
+        // ZMĚNA: Inicializace zobrazení životů
+        this.ui.updateLives(this.gameState.lives);
         
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
@@ -113,10 +112,14 @@ class GameCore {
      * Zpracovává kolize detekované v 3D modulu.
      */
     handleCollision(type, index) {
-        // ZMĚNA: Upraveno pro zpracování štítu
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
-            if (powerupType === 'shield') {
+            // ZMĚNA: Aktualizace UI po sebrání života
+            if (powerupType === 'life') {
+                this.ui.updateLives(this.gameState.lives);
+                this.audio.playSound('powerup_shield'); // Můžeme použít podobný zvuk
+                this.ui.showQuote('powerup');
+            } else if (powerupType === 'shield') {
                 this.audio.playSound('powerup_shield');
                 this.ui.showQuote('powerup');
             } else {
@@ -126,14 +129,28 @@ class GameCore {
             }
             this.audio.vibrate(50);
         } else if (type === 'obstacle') {
+            // Hráč je nesmrtelný po zásahu nebo má štít
+            if (this.gameState.invincibilityTimer > 0) return;
+
             if (this.logic.consumeShield(this.gameState)) {
-                // Štít byl spotřebován
                 this.audio.playSound('shield_break');
                 this.threeD.triggerShieldBreakEffect();
-                this.threeD.gameObjects[index].mesh.visible = false; // Skryjeme překážku
-                this.gameState.invincibilityTimer = 1000; // Krátká nesmrtelnost
-            } else if(this.gameState.invincibilityTimer <= 0) {
-                this.gameOver();
+                this.threeD.gameObjects[index].mesh.visible = false;
+                this.gameState.invincibilityTimer = 1000;
+            } else {
+                // ZMĚNA: Logika pro ztrátu života
+                const flash = document.getElementById('collision-flash');
+                flash.classList.add('flash');
+                setTimeout(() => flash.classList.remove('flash'), 500);
+                this.audio.vibrate([100, 50, 100]);
+                this.audio.playSound('collision');
+
+                const isGameOver = this.logic.handlePlayerHit(this.gameState);
+                this.ui.updateLives(this.gameState.lives);
+                
+                if (isGameOver) {
+                    this.gameOver();
+                }
             }
         }
     }
@@ -144,15 +161,8 @@ class GameCore {
      */
     gameOver() {
         if (!this.gameState.isPlaying) return;
-
-        const flash = document.getElementById('collision-flash');
-        flash.classList.add('flash');
-        setTimeout(() => flash.classList.remove('flash'), 500);
-
-        this.audio.vibrate([100, 50, 100]);
         this.gameState.isPlaying = false;
-        this.audio.playSound('collision');
-        this.ui.showQuote('collision');
+        this.ui.showQuote('gameover'); // Změna z 'collision' na 'gameover' pro finální hlášku
         
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
@@ -200,15 +210,14 @@ class GameCore {
             this.audio.playSound('jump');
             this.ui.showQuote('jump');
         } else if (this.logic.canDoubleJump(this.gameState)) {
-            // ZMĚNA: Přidána aktivace triku a nová hláška
             this.gameState.playerVelocityY = JUMP_FORCE * 0.9;
             this.gameState.jumpCount = 2;
             this.logic.activateSkill('doubleJump');
             this.ui.updateSkillUI(this.logic.skills);
             this.gameState.runStats.jumps++;
-            this.gameState.isDoingTrick = true; // Aktivace animace triku
+            this.gameState.isDoingTrick = true;
             this.audio.playSound('jump');
-            this.ui.showQuote('trik'); // Nová kategorie hlášky
+            this.ui.showQuote('trik');
         }
     }
 
@@ -223,7 +232,6 @@ class GameCore {
             this.ui.updateSkillUI(this.logic.skills);
             this.gameState.runStats.dashes++;
             this.audio.playSound('dash');
-            // ZMĚNA: Nová kategorie hlášky
             this.ui.showQuote('boost');
             setTimeout(() => this.gameState.isDashing = false, 300);
         }

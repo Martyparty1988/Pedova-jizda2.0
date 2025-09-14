@@ -1,5 +1,5 @@
 // Název cache - změňte pro invalidaci a novou instalaci
-const CACHE_NAME = 'pedrova-jizda-cache-v3';
+const CACHE_NAME = 'pedrova-jizda-cache-v4';
 // Seznam všech souborů, které jsou potřeba pro offline běh
 const assetsToCache = [
   './',
@@ -13,7 +13,6 @@ const assetsToCache = [
   'game-audio.js',
   'game-logic.js',
   'game-assets.js',
-  'bg-tunnel.svg', // Přidán nový asset
   'icons/icon-512x512.png',
   'icons/icon-256x256.png',
   'icons/icon-192x192.png',

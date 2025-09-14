@@ -20,6 +20,11 @@ class GameLogic {
             playerVelocityY: 0,
             jumpCount: 0,
             lane: 1,
+            lives: 3,
+            maxLives: 3,
+            invincibilityTimer: 0,
+            // ZMĚNA: Přidán stav pro štít
+            hasShield: false,
             runStats: {
                 jumps: 0,
                 dashes: 0,
@@ -38,6 +43,10 @@ class GameLogic {
 
     updateSkills(delta, onUpdate) {
         let needsUpdate = false;
+        if (this.currentGameState && this.currentGameState.invincibilityTimer > 0) {
+            this.currentGameState.invincibilityTimer -= delta * 1000;
+        }
+
         for (const skill of Object.values(this.skills)) {
             if (skill.cooldown > 0) {
                 skill.cooldown -= delta * 1000;
@@ -71,6 +80,7 @@ class GameLogic {
     }
 
     updateScore(gameState, delta) {
+        this.currentGameState = gameState;
         gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 2500);
         gameState.score += Math.floor(gameState.speed * delta * 10);
     }
@@ -87,24 +97,43 @@ class GameLogic {
         }
     }
 
+    // ZMĚNA: Upraveno pro zpracování různých typů power-upů
     collectPowerup(gameState, index, gameObjects) {
         const obj = gameObjects[index];
-        obj.mesh.visible = false; // Hide immediately
-        
-        gameState.score += 500;
+        if (!obj || !obj.mesh.visible) return null;
+
+        obj.mesh.visible = false;
         gameState.runStats.powerups++;
-        gameState.baseSpeed += 1;
-        setTimeout(() => gameState.baseSpeed -= 1, 5000);
         
-        // Remove after a short delay to ensure it's not checked again
+        const powerupType = obj.powerupType;
+
+        if (powerupType === 'shield') {
+            gameState.hasShield = true;
+        } else { // 'speed' je default
+            gameState.score += 500;
+            gameState.baseSpeed += 1;
+            setTimeout(() => gameState.baseSpeed -= 1, 5000);
+        }
+        
         setTimeout(() => {
             const realIndex = gameObjects.indexOf(obj);
             if (realIndex > -1) {
                  gameObjects.splice(realIndex, 1);
             }
         }, 100);
+        
+        return powerupType;
     }
     
+    // ZMĚNA: Nová funkce pro spotřebování štítu
+    consumeShield(gameState) {
+        if (gameState.hasShield) {
+            gameState.hasShield = false;
+            return true;
+        }
+        return false;
+    }
+
     getFinalStats(gameState) {
         const stats = { 
             score: gameState.score, 
@@ -126,3 +155,4 @@ class GameLogic {
 }
 
 export { GameLogic };
+

@@ -12,7 +12,8 @@ export class Environment {
         const { tunnel, wireframe } = this.createFuturisticTunnel();
         this.tunnel = tunnel;
         this.tunnelWireframe = wireframe;
-        this.floor = this.createFuturisticFloor();
+        // OPRAVA: Vytvoření nové podlahy pomocí GridHelper
+        this.floor = this.createGridFloor();
 
         // Vytvoření částic a světelných prstenců
         this.dustParticles = this.createDigitalParticles();
@@ -29,7 +30,6 @@ export class Environment {
             metalness: 0.2
         });
         const tunnel = new THREE.Mesh(tunnelGeo, tunnelMat);
-        // OPRAVA: Otočení válce, aby z něj byl horizontální tunel
         tunnel.rotation.x = Math.PI / 2;
 
         const wireframeGeo = new THREE.EdgesGeometry(tunnelGeo);
@@ -41,33 +41,22 @@ export class Environment {
             blending: THREE.AdditiveBlending
         });
         const wireframe = new THREE.LineSegments(wireframeGeo, wireframeMat);
-        // OPRAVA: Otočení kostry, aby seděla na tunel
         wireframe.rotation.x = Math.PI / 2;
         
         return { tunnel, wireframe };
     }
 
-    createFuturisticFloor() {
-        const floorGeo = new THREE.PlaneGeometry(12, 200, 1, 100);
+    // OPRAVA: Nová metoda pro vytvoření podlahy jako mřížky
+    createGridFloor() {
+        const size = 200;
+        const divisions = 50;
+        // Použití GridHelper pro jednoduchou a efektivní mřížku
+        const gridHelper = new THREE.GridHelper(size, divisions, 0x00aacc, 0x333333);
         
-        const gridTexture = this.createFuturisticGridTexture();
-        gridTexture.wrapS = THREE.RepeatWrapping;
-        gridTexture.wrapT = THREE.RepeatWrapping;
-        gridTexture.repeat.set(6, 100);
-
-        const floorMat = new THREE.MeshBasicMaterial({
-            map: gridTexture,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            opacity: 0.4
-        });
+        // Pozice mřížky, aby byla na dně tunelu
+        gridHelper.position.y = -8.5; 
         
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        // Upravena pozice, aby seděla v šestiúhelníkovém tunelu
-        floor.position.y = -8.5; 
-        
-        return floor;
+        return gridHelper;
     }
 
     createDigitalParticles() {
@@ -100,27 +89,10 @@ export class Environment {
 
         for (let i = 0; i < 10; i++) {
             const ring = new THREE.Mesh(ringGeo, (i % 2 === 0) ? mat1 : mat2);
-            // OPRAVA: Správná orientace prstenců
-            // ring.rotation.x = Math.PI / 2; // Toto už není potřeba, Torus je orientován správně
             ring.position.z = -i * 20;
             group.add(ring);
         }
         return group;
-    }
-
-    createFuturisticGridTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 64; canvas.height = 64;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'rgba(0, 0, 0, 0)';
-        ctx.fillRect(0, 0, 64, 64);
-        ctx.strokeStyle = 'rgba(0, 191, 255, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 32); ctx.lineTo(64, 32);
-        ctx.moveTo(32, 0); ctx.lineTo(32, 64);
-        ctx.stroke();
-        return new THREE.CanvasTexture(canvas);
     }
     
     setZone(zone, scene, ambientLight) {
@@ -137,12 +109,9 @@ export class Environment {
 
     update(moveZ, playerPosition, time) {
         const rotationSpeed = 0.1;
-        // OPRAVA: Rotace kolem osy Z (vlastní osa tunelu po otočení)
         const rotation = -time * rotationSpeed;
         this.tunnel.rotation.z = rotation;
         this.tunnelWireframe.rotation.z = rotation;
-        // Prstence nyní existují ve svém vlastním prostoru, neotáčíme je s tunelem
-        // this.lightRings.rotation.z = rotation; 
 
         this.tunnelWireframe.material.opacity = 0.4 + Math.sin(time * 5) * 0.2;
 

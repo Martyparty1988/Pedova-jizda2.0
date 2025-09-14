@@ -20,6 +20,8 @@ class GameCore {
         this.gameState = null;
         this.animationFrame = null;
         this.touchStart = null;
+        // ZMĚNA: Přidána proměnná pro menu smyčku
+        this.menuAnimationFrame = null;
 
         this.init();
     }
@@ -33,6 +35,8 @@ class GameCore {
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
             this.ui.showScreen('main-menu');
+            // ZMĚNA: Spuštění smyčky pro animaci pozadí menu
+            this.menuLoop();
         } catch (error) {
             console.error("Fatální chyba při inicializaci hry:", error);
             this.ui.elements['webgl-fallback'].classList.add('active');
@@ -51,7 +55,11 @@ class GameCore {
 
         addListener('play-btn', 'click', () => this.startGame());
         addListener('restart-btn', 'click', () => this.startGame());
-        addListener('menu-btn', 'click', () => this.ui.showScreen('main-menu'));
+        addListener('menu-btn', 'click', () => {
+            this.ui.showScreen('main-menu');
+            this.threeD.player.mesh.visible = false; // Schováme hráče při návratu do menu
+            this.menuLoop(); // Znovu spustíme menu animaci
+        });
         addListener('pause-btn', 'click', () => this.togglePause());
         addListener('analyze-run-btn', 'click', () => this.ui.analyzeRun());
 
@@ -69,6 +77,9 @@ class GameCore {
      * Spustí novou hru.
      */
     startGame() {
+        // ZMĚNA: Zastavení menu smyčky
+        if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
+        
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
         this.gameState.isDoingTrick = false; 
@@ -76,18 +87,24 @@ class GameCore {
         this.threeD.reset();
         this.ui.showScreen('game-screen');
         this.ui.updateSkillUI(this.logic.skills);
-        // ZMĚNA: Inicializace zobrazení životů
         this.ui.updateLives(this.gameState.lives);
         
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
     }
     
+    // ZMĚNA: Nová animační smyčka pro menu
+    menuLoop() {
+        this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
+        const delta = this.threeD.clock.getDelta();
+        this.threeD.updateMenuBackground(delta);
+    }
+    
     /**
      * Hlavní herní smyčka.
      */
     gameLoop() {
-        if (!this.gameState.isPlaying) return;
+        if (!this.gameState || !this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
         if (this.gameState.isPaused) return;
 
@@ -114,10 +131,9 @@ class GameCore {
     handleCollision(type, index) {
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
-            // ZMĚNA: Aktualizace UI po sebrání života
             if (powerupType === 'life') {
                 this.ui.updateLives(this.gameState.lives);
-                this.audio.playSound('powerup_shield'); // Můžeme použít podobný zvuk
+                this.audio.playSound('powerup_shield');
                 this.ui.showQuote('powerup');
             } else if (powerupType === 'shield') {
                 this.audio.playSound('powerup_shield');
@@ -129,7 +145,6 @@ class GameCore {
             }
             this.audio.vibrate(50);
         } else if (type === 'obstacle') {
-            // Hráč je nesmrtelný po zásahu nebo má štít
             if (this.gameState.invincibilityTimer > 0) return;
 
             if (this.logic.consumeShield(this.gameState)) {
@@ -138,7 +153,6 @@ class GameCore {
                 this.threeD.gameObjects[index].mesh.visible = false;
                 this.gameState.invincibilityTimer = 1000;
             } else {
-                // ZMĚNA: Logika pro ztrátu života
                 const flash = document.getElementById('collision-flash');
                 flash.classList.add('flash');
                 setTimeout(() => flash.classList.remove('flash'), 500);
@@ -160,9 +174,9 @@ class GameCore {
      * Ukončí hru a zobrazí statistiky.
      */
     gameOver() {
-        if (!this.gameState.isPlaying) return;
+        if (!this.gameState || !this.gameState.isPlaying) return;
         this.gameState.isPlaying = false;
-        this.ui.showQuote('gameover'); // Změna z 'collision' na 'gameover' pro finální hlášku
+        this.ui.showQuote('gameover');
         
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);

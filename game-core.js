@@ -28,13 +28,11 @@ class GameCore {
     }
 
     async init() {
-        // ZMĚNA: Celá logika inicializace byla upravena pro nové integrované načítání
         const menuLoadingText = this.ui.elements['menu-loading-text'];
         const menuLoadingContainer = this.ui.elements['menu-loading-container'];
         const playBtn = this.ui.elements['play-btn'];
 
         try {
-            // Hlavní menu je již viditelné, jen zobrazíme text načítání
             menuLoadingText.textContent = 'Načítám 3D scénu...';
             
             await this.threeD.init();
@@ -45,15 +43,12 @@ class GameCore {
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
 
-            // Vše je načteno, skryjeme načítací prvky a aktivujeme tlačítko
             menuLoadingContainer.style.display = 'none';
             playBtn.disabled = false;
             
-            // Spustíme animaci pozadí menu
             this.menuLoop();
         } catch (error) {
             console.error("Fatální chyba při inicializaci hry:", error);
-            // V případě chyby skryjeme menu a zobrazíme chybovou hlášku
             this.ui.showScreen('webgl-fallback');
         }
     }
@@ -96,8 +91,7 @@ class GameCore {
         
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
-        this.gameState.isDoingTrick = false; 
-        this.gameState.isDoingFrontFlip = false;
+        // OPRAVA: Odstraněny nepotřebné stavy pro animace
         this.logic.resetSkills();
         this.threeD.reset();
         this.ui.showScreen('game-screen');
@@ -109,7 +103,7 @@ class GameCore {
     }
     
     menuLoop() {
-        if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame); // Pojistka
+        if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
         this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
         const delta = this.threeD.clock.getDelta();
         this.threeD.updateMenuBackground(delta);
@@ -149,7 +143,6 @@ class GameCore {
                 this.ui.showQuote('powerup');
                 this.ui.triggerScoreGlow();
             }
-            this.audio.vibrate(50);
         } else if (type === 'obstacle') {
             if (this.gameState.invincibilityTimer > 0) return;
 
@@ -162,7 +155,6 @@ class GameCore {
                 const flash = document.getElementById('collision-flash');
                 flash.classList.add('flash');
                 setTimeout(() => flash.classList.remove('flash'), 500);
-                this.audio.vibrate([100, 50, 100]);
                 this.audio.playSound('collision');
 
                 const isGameOver = this.logic.handlePlayerHit(this.gameState);
@@ -233,6 +225,7 @@ class GameCore {
         }
     }
 
+    // OPRAVA: Zjednodušená funkce skoku, odstraněn nepotřebný dvojitý skok.
     doJump() {
         if (this.logic.canJump(this.gameState)) {
             this.gameState.playerVelocityY = JUMP_FORCE;
@@ -240,26 +233,18 @@ class GameCore {
             this.gameState.runStats.jumps++;
             this.audio.playSound('jump');
             this.ui.showQuote('jump');
-        } else if (this.logic.canDoubleJump(this.gameState)) {
-            this.gameState.playerVelocityY = JUMP_FORCE * 0.9;
-            this.gameState.jumpCount = 2;
-            this.logic.activateSkill('doubleJump');
-            this.ui.updateSkillUI(this.logic.skills);
-            this.gameState.runStats.jumps++;
-            this.gameState.isDoingTrick = true;
-            this.audio.playSound('jump');
-            this.ui.showQuote('trik');
         }
     }
 
     doSuperJump() {
+        // Super skok lze provést pouze ze země.
         if (this.logic.canJump(this.gameState) && this.logic.canSuperJump(this.gameState)) {
             this.logic.activateSkill('superJump');
             this.ui.updateSkillUI(this.logic.skills);
 
-            this.gameState.playerVelocityY = JUMP_FORCE * 1.5;
-            this.gameState.jumpCount = 1;
-            this.gameState.isDoingFrontFlip = true;
+            this.gameState.playerVelocityY = JUMP_FORCE * 1.5; // Větší síla pro vyšší skok
+            this.gameState.jumpCount = 1; // Počítá se jako jeden skok
+            this.gameState.isDoingSuperJump = true; // Aktivuje vizuální efekt
             
             this.gameState.runStats.jumps++;
             this.audio.playSound('super_jump');
@@ -269,7 +254,6 @@ class GameCore {
 
     doDash() {
         if (this.logic.canDash(this.gameState)) {
-            this.audio.vibrate(75);
             this.gameState.isDashing = true;
             this.logic.activateSkill('dash');
             this.ui.updateSkillUI(this.logic.skills);

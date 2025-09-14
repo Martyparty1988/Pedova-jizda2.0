@@ -1,204 +1,262 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
+import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
 
-/**
- * Třída pro správu a generování herního prostředí.
- * OPRAVA: Přidána rotace pro dynamický efekt tunelu.
- */
-export class Environment {
-    constructor() {
-        this.zoneThemes = {
-            aurora: { fogColor: 0x051010, ambientColor: 0x081520, baseColor: 0x00BFFF, accentColor: 0x8A2BE2, particleColor: 0x00BFFF },
-            sunset: { fogColor: 0x100505, ambientColor: 0x200808, baseColor: 0xFF007F, accentColor: 0xFFD700, particleColor: 0xFF007F },
-            matrix: { fogColor: 0x051005, ambientColor: 0x082008, baseColor: 0x39FF14, accentColor: 0x008080, particleColor: 0x39FF14 }
-        };
+import { Player } from './player.js';
+import { Environment } from './environment.js';
+import { GameObjectFactory } from './gameObjectFactory.js';
 
-        const { mesh: tunnel, texture: tunnelTexture } = this.createFuturisticTunnel();
-        this.tunnel = tunnel;
-        this.tunnelTexture = tunnelTexture;
+const LANE_WIDTH = 4;
 
-        this.floor = this.createFuturisticFloor();
-        this.dustParticles = this.createDigitalParticles();
-        this.lightRings = this.createLightRings(this.zoneThemes.aurora);
+// OPRAVA: Přidáno "export" přímo sem, aby bylo sdílení 100% spolehlivé.
+export class Game3D {
+    constructor(options) {
+        this.canvas = options.canvas;
+        this.onCollision = options.onCollision;
+        this.gameObjects = [];
+        this.lastSpawnZ = 0;
+        this.currentZone = 'aurora';
+        this.zoneLength = 2000;
     }
 
-    createFuturisticTunnel() {
-        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 400, 6, 1, true); // Zvýšená délka pro plynulost
-        const tunnelTex = this.createFuturisticHexTexture();
-        tunnelTex.wrapS = THREE.RepeatWrapping;
-        tunnelTex.wrapT = THREE.RepeatWrapping;
-        tunnelTex.repeat.set(12, 6);
+    async init() {
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+        this.camera.position.set(0, 4, 10);
+        this.clock = new THREE.Clock();
+        this.playerCollider = new THREE.Box3();
+        this.obstacleCollider = new THREE.Box3();
 
-        const tunnelMat = new THREE.MeshStandardMaterial({
-            map: tunnelTex,
-            side: THREE.BackSide,
-            roughness: 0.4,
-            metalness: 0.8,
-            emissive: 0x111111,
-        });
-
-        const mesh = new THREE.Mesh(tunnelGeo, tunnelMat);
-        return { mesh, texture: tunnelTex };
-    }
-
-    createFuturisticFloor() {
-        const floorGeo = new THREE.PlaneGeometry(12, 400);
-        const gridTexture = this.createFuturisticGridTexture();
-        gridTexture.wrapS = THREE.RepeatWrapping;
-        gridTexture.wrapT = THREE.RepeatWrapping;
-        gridTexture.repeat.set(6, 100);
-
-        const floorMat = new THREE.MeshBasicMaterial({
-            map: gridTexture,
-            transparent: true,
-            opacity: 0.3
-        });
-        
-        const floor = new THREE.Mesh(floorGeo, floorMat);
-        floor.rotation.x = -Math.PI / 2;
-        floor.position.y = -1;
-        
-        return floor;
-    }
-
-    createDigitalParticles() {
-        const geometry = new THREE.BufferGeometry();
-        const vertices = [];
-        for (let i = 0; i < 500; i++) {
-            vertices.push(
-                (Math.random() - 0.5) * 20,
-                Math.random() * 10,
-                (Math.random() - 0.5) * 200
-            );
+        try {
+            this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+            if (this.renderer.getContext() === null) throw new Error("Nepodařilo se získat WebGL kontext.");
+        } catch (e) {
+            throw new Error(`Selhání inicializace WebGL Rendereru: ${e.message}`);
         }
-        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        
-        const particleTexture = new THREE.CanvasTexture(this.createParticleCanvas());
-        const material = new THREE.PointsMaterial({
-            size: 0.15,
-            color: 0x00BFFF,
-            transparent: true,
-            opacity: 0.5,
-            map: particleTexture,
-            blending: THREE.AdditiveBlending,
-        });
-        return new THREE.Points(geometry, material);
+
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setClearColor(0x000000, 0);
+
+        this.setupPostProcessing();
+        this.setupWorld();
     }
     
-    createLightRings(theme) {
-        const group = new THREE.Group();
-        const ringGeo = new THREE.RingGeometry(9.5, 9.8, 6, 1);
-        
-        const mat1 = new THREE.MeshBasicMaterial({ color: theme.baseColor, side: THREE.DoubleSide, opacity: 0.7, transparent: true });
-        const mat2 = new THREE.MeshBasicMaterial({ color: theme.accentColor, side: THREE.DoubleSide, opacity: 0.7, transparent: true });
+    setupPostProcessing() {
+        const composer = new EffectComposer(this.renderer);
+        composer.addPass(new RenderPass(this.scene, this.camera));
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.1);
+        composer.addPass(bloomPass);
 
-        for (let i = 0; i < 15; i++) {
-            const ring = new THREE.Mesh(ringGeo, (i % 2 === 0) ? mat1 : mat2);
-            ring.rotation.x = Math.PI / 2;
-            ring.position.z = -i * 20;
-            group.add(ring);
-        }
-        return group;
+        const customShader = {
+            uniforms: { "tDiffuse": { value: null }, "vignette": { value: 0.9 } },
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }`,
+            fragmentShader: `uniform sampler2D tDiffuse; uniform float vignette; varying vec2 vUv; void main() { vec4 color = texture2D( tDiffuse, vUv ); float vig = 1.0 - smoothstep(0.0, vignette, length(vUv - 0.5)); gl_FragColor = color * vig; }`
+        };
+        const shaderPass = new ShaderPass(customShader);
+        composer.addPass(shaderPass);
+        this.composer = composer;
     }
 
-    createFuturisticHexTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 256;
-        const ctx = canvas.getContext('2d');
+    setupWorld() {
+        this.player = new Player();
+        this.environment = new Environment();
+        this.objectFactory = new GameObjectFactory();
         
-        ctx.fillStyle = '#050810';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'rgba(0, 191, 255, 0.2)';
-        ctx.lineWidth = 2;
+        this.scene.fog = new THREE.Fog(0x050810, 15, 80);
+        this.ambientLight = new THREE.AmbientLight(0x080820, 2.5);
+        this.scene.add(this.ambientLight);
 
-        const hexSize = 32;
-        const hexHeight = hexSize * Math.sqrt(3);
+        this.scene.add(this.player.mesh);
+        this.player.mesh.visible = false;
         
-        for (let row = -1; row < canvas.height / hexHeight + 1; row++) {
-            for (let col = -1; col < canvas.width / (hexSize * 1.5) + 1; col++) {
-                let x = col * hexSize * 1.5;
-                let y = row * hexHeight;
-                if (col % 2 === 1) y += hexHeight / 2;
-                ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
-                    const angle = (Math.PI / 3) * i;
-                    ctx.lineTo(x + hexSize * Math.cos(angle), y + hexSize * Math.sin(angle));
+        this.scene.add(this.environment.tunnel);
+        this.scene.add(this.environment.floor);
+        this.scene.add(this.environment.dustParticles);
+        this.scene.add(this.environment.lightRings);
+        
+        this.shield = this.objectFactory.createShield();
+        this.player.mesh.add(this.shield);
+
+        this.keyLight = new THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
+        this.scene.add(this.keyLight);
+        this.scene.add(this.keyLight.target);
+    }
+    
+    reset() {
+        [...this.gameObjects].forEach(o => this.scene.remove(o.mesh));
+        this.gameObjects = [];
+        this.lastSpawnZ = 0;
+        this.player.mesh.position.set(0, 0, 0);
+        this.player.mesh.visible = true;
+        this.camera.position.set(0, 4, 10);
+        this.player.mesh.rotation.set(0, 0, 0);
+        
+        this.currentZone = 'aurora';
+        this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+    }
+    
+    updateMenuBackground(delta) {
+        this.camera.position.z -= delta * 5;
+        this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
+        this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
+        this.camera.rotation.y = Math.sin(Date.now() * 0.0001) * 0.1;
+        
+        this.environment.update(delta * 5, this.camera.position, delta);
+        this.composer.render();
+    }
+    
+    update(gameState, targetX, delta) {
+        this.player.mesh.position.y = gameState.playerY;
+        this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
+        
+        this.player.update(delta);
+
+        const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
+        this.player.mesh.position.z -= moveZ;
+        
+        const distance = Math.abs(this.player.mesh.position.z);
+        const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
+        const zones = ['aurora', 'sunset', 'matrix'];
+        const newZone = zones[zoneIndex];
+
+        if (newZone !== this.currentZone) {
+            this.currentZone = newZone;
+            this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+        }
+
+        this.lastSpawnZ += moveZ;
+        if (this.lastSpawnZ > (600 / gameState.speed)) {
+            this.spawnObject();
+            this.lastSpawnZ = 0;
+        }
+        
+        if (gameState.invincibilityTimer > 0) {
+            this.player.mesh.visible = Math.floor(Date.now() / 100) % 2 === 0;
+        } else {
+            this.player.mesh.visible = true;
+        }
+        this.shield.visible = gameState.hasShield;
+        if (this.shield.visible) {
+            this.shield.rotation.y += delta;
+            this.shield.rotation.x += delta * 0.5;
+        }
+        
+        this.environment.update(moveZ, this.player.mesh.position, delta);
+        this.updateGameObjects(delta);
+        this.checkCollisions(gameState);
+        this.cleanupObjects(gameState);
+        this.updateCameraAndLights();
+        
+        this.composer.render();
+    }
+    
+    updateGameObjects(delta) {
+        for (const obj of this.gameObjects) {
+            if (obj.movement) {
+                obj.mesh.position.x += obj.movement.speed * delta * obj.movement.direction;
+                if (Math.abs(obj.mesh.position.x) > LANE_WIDTH) {
+                    obj.movement.direction *= -1;
                 }
-                ctx.closePath();
-                ctx.stroke();
             }
         }
-        return new THREE.CanvasTexture(canvas);
     }
 
-    createFuturisticGridTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 128;
-        const ctx = canvas.getContext('2d');
+    updateCameraAndLights() {
+        const playerPos = this.player.mesh.position;
+        this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
+        this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
+        this.camera.position.z = playerPos.z + 10;
         
-        ctx.fillStyle = 'transparent';
-        ctx.fillRect(0, 0, 128, 128);
-        ctx.strokeStyle = 'rgba(0, 191, 255, 0.5)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0); ctx.lineTo(0, 128);
-        ctx.moveTo(0, 0); ctx.lineTo(128, 0);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(0, 191, 255, 0.8)';
-        ctx.fillRect(0,0,5,5);
-
-        return new THREE.CanvasTexture(canvas);
+        this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
+        this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
+        this.keyLight.target.updateMatrixWorld();
     }
 
-    createParticleCanvas() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 32;
-        canvas.height = 32;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, 32, 32);
-        return canvas;
-    }
-
-    setZone(zone, scene, ambientLight) {
-        const theme = this.zoneThemes[zone];
-        if (!theme) return;
-
-        scene.fog.color.setHex(theme.fogColor);
-        ambientLight.color.setHex(theme.ambientColor);
-        
-        this.lightRings.children.forEach((ring, i) => {
-            ring.material.color.setHex(i % 2 === 0 ? theme.baseColor : theme.accentColor);
-        });
-        
-        this.dustParticles.material.color.setHex(theme.particleColor);
-    }
-
-    update(moveZ, playerPosition, delta) { // Přidán 'delta'
-        this.tunnelTexture.offset.y -= moveZ * 0.01;
-
-        // OPRAVA: Přidána rotace tunelu
-        const rotationSpeed = 0.1;
-        this.tunnel.rotation.z += rotationSpeed * delta;
-        this.lightRings.rotation.z += rotationSpeed * delta;
-
-
-        this.dustParticles.position.z += moveZ * 0.5;
-        if (this.dustParticles.position.z > playerPosition.z) {
-            this.dustParticles.position.z -= 100;
-        }
-
-        this.lightRings.children.forEach(ring => {
-            if (ring.position.z > playerPosition.z + 20) {
-                ring.position.z -= 20 * 15; // 15 prstenců * 20 rozestup
+    triggerShieldBreakEffect() {
+        if (!this.shield) return;
+        const initialScale = 1;
+        this.shield.scale.set(initialScale, initialScale, initialScale);
+        let scale = initialScale;
+        const animate = () => {
+            scale += 0.5;
+            this.shield.scale.set(scale, scale, scale);
+            this.shield.material.opacity -= 0.1;
+            if (this.shield.material.opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                this.shield.scale.set(initialScale, initialScale, initialScale);
+                this.shield.material.opacity = 0.3;
             }
-        });
+        };
+        animate();
+    }
 
-        // Opakování tunelu a podlahy
-        if (this.tunnel.position.z > playerPosition.z + 100) {
-            this.tunnel.position.z -= 200;
-            this.floor.position.z -= 200;
+    spawnObject() { 
+        const rand = Math.random();
+        const zPos = this.player.mesh.position.z - 150;
+        let newObject;
+
+        if (rand < 0.70) {
+            newObject = this.objectFactory.createObstacle(zPos);
+        } else if (rand < 0.85) {
+            newObject = this.objectFactory.createPowerup('speed', zPos);
+        } else if (rand < 0.95) {
+            newObject = this.objectFactory.createPowerup('shield', zPos);
+        } else {
+            newObject = this.objectFactory.createPowerup('life', zPos);
         }
+        
+        if (newObject.mesh) {
+            this.scene.add(newObject.mesh);
+            this.gameObjects.push(newObject);
+        }
+    }
+    
+    checkCollisions(gameState) {
+        if (!this.player.mesh.visible) return;
+        this.playerCollider.setFromObject(this.player.mesh);
+
+        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
+            const obj = this.gameObjects[i];
+            if (!obj.mesh || !obj.mesh.visible || Math.abs(obj.mesh.position.z - this.player.mesh.position.z) > 4) continue;
+            
+            this.obstacleCollider.setFromObject(obj.mesh);
+            if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
+                this.onCollision(obj.type, i);
+            }
+        }
+    }
+    
+    cleanupObjects(gameState) {
+        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
+            const obj = this.gameObjects[i];
+            if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
+                this.scene.remove(obj.mesh);
+                obj.mesh.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
+                if (obj.type === 'obstacle') gameState.runStats.obstaclesDodged++;
+                this.gameObjects.splice(i, 1);
+            }
+        }
+    }
+
+    onWindowResize() {
+        if (!this.camera || !this.renderer) return;
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 }
+

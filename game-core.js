@@ -1,4 +1,56 @@
-game-core.js        canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
+import { GameUI } from './game-ui.js';
+import { Game3D } from './game-3d.js';
+import { GameLogic } from './game-logic.js';
+import { GameAudio } from './game-audio.js';
+
+const GRAVITY = -30;
+const JUMP_FORCE = 10;
+const LANE_WIDTH = 4;
+
+class GameCore {
+    constructor() {
+        this.ui = new GameUI();
+        this.logic = new GameLogic();
+        this.audio = new GameAudio();
+        this.threeD = new Game3D({
+            canvas: this.ui.elements['game-canvas'],
+            onCollision: (type, index) => this.handleCollision(type, index)
+        });
+
+        this.gameState = null;
+        this.animationFrame = null;
+        this.touchStart = null;
+
+        this.init();
+    }
+
+    async init() {
+        this.ui.showLoading('Načítám 3D scénu...');
+        try {
+            await this.threeD.init();
+            this.ui.showLoading('Inicializuji audio...');
+            this.audio.init();
+            this.setupEventListeners();
+            this.logic.loadStats(this.ui.elements);
+            this.ui.showScreen('main-menu');
+        } catch (error) {
+            console.error("Fatální chyba při inicializaci hry:", error);
+            this.ui.elements['webgl-fallback'].classList.add('active');
+        }
+    }
+
+    setupEventListeners() {
+        this.ui.elements['play-btn'].addEventListener('click', () => this.startGame());
+        this.ui.elements['restart-btn'].addEventListener('click', () => this.startGame());
+        this.ui.elements['menu-btn'].addEventListener('click', () => this.ui.showScreen('main-menu'));
+        this.ui.elements['pause-btn'].addEventListener('click', () => this.togglePause());
+        this.ui.elements['analyze-run-btn'].addEventListener('click', () => this.ui.analyzeRun());
+
+        window.addEventListener('resize', () => this.threeD.onWindowResize());
+        window.addEventListener('keydown', (e) => this.handleInput('keydown', e));
+
+        const canvas = this.ui.elements['game-canvas'];
+        canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
         canvas.addEventListener('touchend', (e) => this.handleInput('touchend', e), { passive: false });
     }
 
@@ -51,7 +103,7 @@ game-core.js        canvas.addEventListener('touchstart', (e) => this.handleInpu
             this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
             this.audio.playSound('powerup');
             this.ui.showQuote('powerup');
-            this.ui.glowScore();
+            this.ui.triggerScoreGlow();
             this.audio.vibrate(50);
         }
     }
@@ -68,7 +120,7 @@ game-core.js        canvas.addEventListener('touchstart', (e) => this.handleInpu
         
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
-        this.ui.showGameOverScreen(finalStats);
+        this.ui.showGameOver(finalStats);
     }
     
     /**
@@ -144,9 +196,8 @@ game-core.js        canvas.addEventListener('touchstart', (e) => this.handleInpu
     togglePause() {
         if (!this.gameState.isPlaying) return;
         this.gameState.isPaused = !this.gameState.isPaused;
-        this.ui.togglePauseButton(this.gameState.isPaused);
+        this.ui.togglePause(this.gameState.isPaused);
     }
 }
 
 export { GameCore };
-

@@ -16,7 +16,6 @@ class Game3D {
         this.onCollision = options.onCollision;
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        // ZMĚNA: Přepínání zón je nyní jen o barvách
         this.currentZone = 'cyber_cyan';
         this.zoneLength = 2000;
     }
@@ -47,7 +46,6 @@ class Game3D {
     setupPostProcessing() {
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.camera));
-        // ZMĚNA: Zvýraznění Bloom efektu pro futuristický vzhled
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.1);
         composer.addPass(bloomPass);
 
@@ -66,8 +64,8 @@ class Game3D {
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
-        this.scene.fog = new THREE.Fog(0x050810, 15, 80); // Počáteční barva
-        this.ambientLight = new THREE.AmbientLight(0x080820, 2.5); // Počáteční barva
+        this.scene.fog = new THREE.Fog(0x050810, 15, 80);
+        this.ambientLight = new THREE.AmbientLight(0x080820, 2.5);
         this.scene.add(this.ambientLight);
 
         this.scene.add(this.player.mesh);
@@ -131,7 +129,6 @@ class Game3D {
         
         const distance = Math.abs(this.player.mesh.position.z);
         const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
-        // ZMĚNA: Pole zón aktualizováno na nová barevná schémata
         const zones = ['cyber_cyan', 'cyber_magenta', 'cyber_lime'];
         const newZone = zones[zoneIndex];
 
@@ -157,12 +154,11 @@ class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
 
+        // ZMĚNA: Nahrazeno přímé ovládání motoru za volání funkcí z Player třídy
         if (gameState.isDashing) {
-            this.player.engine.material.emissiveIntensity = 10;
-            this.player.engine.scale.z = 2.5;
+            this.player.activateBoost();
         } else {
-            this.player.engine.material.emissiveIntensity = 3;
-            this.player.engine.scale.z = 1;
+            this.player.deactivateBoost();
         }
 
         this.environment.update(moveZ, this.player.mesh.position);
@@ -221,7 +217,6 @@ class Game3D {
         let newObject;
 
         if (rand < 0.70) {
-            // ZMĚNA: Volání createObstacle již nepotřebuje zónu
             newObject = this.objectFactory.createObstacle(zPos);
         } else if (rand < 0.85) {
             newObject = this.objectFactory.createPowerup('speed', zPos);

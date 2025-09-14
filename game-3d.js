@@ -16,7 +16,8 @@ class Game3D {
         this.onCollision = options.onCollision;
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        this.currentZone = 'cyber_cyan';
+        // ZMĚNA: Nový výchozí název zóny
+        this.currentZone = 'aurora';
         this.zoneLength = 2000;
     }
 
@@ -93,7 +94,7 @@ class Game3D {
         this.camera.position.set(0, 4, 10);
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
-        this.currentZone = 'cyber_cyan';
+        this.currentZone = 'aurora';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
     
@@ -129,7 +130,8 @@ class Game3D {
         
         const distance = Math.abs(this.player.mesh.position.z);
         const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
-        const zones = ['cyber_cyan', 'cyber_magenta', 'cyber_lime'];
+        // ZMĚNA: Nové názvy zón v poli
+        const zones = ['aurora', 'sunset', 'matrix'];
         const newZone = zones[zoneIndex];
 
         if (newZone !== this.currentZone) {
@@ -154,7 +156,6 @@ class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
 
-        // ZMĚNA: Nahrazeno přímé ovládání motoru za volání funkcí z Player třídy
         if (gameState.isDashing) {
             this.player.activateBoost();
         } else {

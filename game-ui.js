@@ -5,7 +5,7 @@ class GameUI {
         this.elements = {};
         this.getDOMElements();
         this.quoteTimeout = null;
-        this.scoreAnimationInterval = null; // ZMĚNA: Přidáno pro řízení animace skóre
+        this.scoreAnimationInterval = null;
     }
 
     getDOMElements() {
@@ -15,7 +15,9 @@ class GameUI {
             'game-time', 'pause-btn', 'skill-doubleJump', 'skill-dash', 'loading-text', 
             'ai-summary-container', 'ai-summary-spinner', 'ai-summary-text', 
             'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 
-            'webgl-fallback', 'game-canvas', 'lives-container'
+            'webgl-fallback', 'game-canvas', 'lives-container',
+            // ZMĚNA: Přidána ID pro prvky načítání v menu
+            'menu-loading-container', 'menu-loading-spinner', 'menu-loading-text'
         ];
         ids.forEach(id => {
             const el = document.getElementById(id);
@@ -28,7 +30,6 @@ class GameUI {
     }
     
     showScreen(id) {
-        // Zastavení případné běžící animace skóre
         if (this.scoreAnimationInterval) {
             clearInterval(this.scoreAnimationInterval);
             this.scoreAnimationInterval = null;
@@ -40,6 +41,7 @@ class GameUI {
     }
     
     showLoading(message) {
+        // Tuto funkci už nepotřebujeme pro hlavní tok, ale můžeme ji nechat pro případné budoucí použití
         this.elements['loading-text'].textContent = message;
         this.showScreen('loading-screen');
     }
@@ -58,7 +60,6 @@ class GameUI {
         }
     }
     
-    // ZMĚNA: Funkce kompletně přepsána pro animaci dopočítávání skóre
     showGameOver(stats) {
         const finalScoreEl = this.elements['final-score'];
         const bestScoreEl = this.elements['best-score'];
@@ -69,12 +70,10 @@ class GameUI {
 
         if (!finalScoreEl || !bestScoreEl || !gameTimeEl || !quoteEl) return;
 
-        // Nastavení statických textů
         bestScoreEl.textContent = stats.bestScore;
         gameTimeEl.textContent = stats.time + 's';
         quoteEl.textContent = this.getRandomQuote('gameover');
         
-        // Reset AI shrnutí
         aiContainer.style.display = 'none';
         aiContainer.classList.remove('active');
         analyzeBtn.style.display = 'block';
@@ -82,11 +81,10 @@ class GameUI {
 
         this.showScreen('game-over');
 
-        // Animace dopočítávání skóre
         let currentScore = 0;
         const targetScore = stats.score;
-        const duration = 1000; // 1 sekunda
-        const increment = targetScore / (duration / 16); // Cca 60 FPS
+        const duration = 1000;
+        const increment = targetScore / (duration / 16);
 
         if (this.scoreAnimationInterval) clearInterval(this.scoreAnimationInterval);
 

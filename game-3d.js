@@ -16,7 +16,8 @@ class Game3D {
         this.onCollision = options.onCollision;
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        this.currentZone = 'sewer';
+        // ZMĚNA: Přepínání zón je nyní jen o barvách
+        this.currentZone = 'cyber_cyan';
         this.zoneLength = 2000;
     }
 
@@ -46,7 +47,8 @@ class Game3D {
     setupPostProcessing() {
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.1);
+        // ZMĚNA: Zvýraznění Bloom efektu pro futuristický vzhled
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.1);
         composer.addPass(bloomPass);
 
         const customShader = {
@@ -64,12 +66,12 @@ class Game3D {
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
-        this.scene.fog = new THREE.Fog(0x101015, 15, 80);
-        this.ambientLight = new THREE.AmbientLight(0x404040, 2.5);
+        this.scene.fog = new THREE.Fog(0x050810, 15, 80); // Počáteční barva
+        this.ambientLight = new THREE.AmbientLight(0x080820, 2.5); // Počáteční barva
         this.scene.add(this.ambientLight);
 
         this.scene.add(this.player.mesh);
-        this.player.mesh.visible = false; // ZMĚNA: Hráč je v menu neviditelný
+        this.player.mesh.visible = false;
         
         this.scene.add(this.environment.tunnel);
         this.scene.add(this.environment.floor);
@@ -89,17 +91,15 @@ class Game3D {
         this.gameObjects = [];
         this.lastSpawnZ = 0;
         this.player.mesh.position.set(0, 0, 0);
-        this.player.mesh.visible = true; // ZMĚNA: Hráč se zviditelní na startu hry
+        this.player.mesh.visible = true;
         this.camera.position.set(0, 4, 10);
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
-        this.currentZone = 'sewer';
+        this.currentZone = 'cyber_cyan';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
     
-    // ZMĚNA: Nová funkce pro animaci pozadí v menu
     updateMenuBackground(delta) {
-        // Pomalý pohyb kamery vpřed a do strany pro dynamický efekt
         this.camera.position.z -= delta * 5;
         this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
         this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
@@ -131,7 +131,8 @@ class Game3D {
         
         const distance = Math.abs(this.player.mesh.position.z);
         const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
-        const zones = ['sewer', 'subway', 'datastream'];
+        // ZMĚNA: Pole zón aktualizováno na nová barevná schémata
+        const zones = ['cyber_cyan', 'cyber_magenta', 'cyber_lime'];
         const newZone = zones[zoneIndex];
 
         if (newZone !== this.currentZone) {
@@ -220,7 +221,8 @@ class Game3D {
         let newObject;
 
         if (rand < 0.70) {
-            newObject = this.objectFactory.createObstacle(zPos, this.currentZone);
+            // ZMĚNA: Volání createObstacle již nepotřebuje zónu
+            newObject = this.objectFactory.createObstacle(zPos);
         } else if (rand < 0.85) {
             newObject = this.objectFactory.createPowerup('speed', zPos);
         } else if (rand < 0.95) {
@@ -255,7 +257,6 @@ class Game3D {
             const obj = this.gameObjects[i];
             if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
                 this.scene.remove(obj.mesh);
-                // Projít potomky a uvolnit jejich zdroje
                 obj.mesh.traverse(child => {
                     if (child.geometry) child.geometry.dispose();
                     if (child.material) {

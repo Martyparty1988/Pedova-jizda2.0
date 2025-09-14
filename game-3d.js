@@ -4,16 +4,12 @@ import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/p
 import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
 
-// Import nových modulů
 import { Player } from './player.js';
 import { Environment } from './environment.js';
 import { GameObjectFactory } from './gameObjectFactory.js';
 
 const LANE_WIDTH = 4;
 
-/**
- * Hlavní třída pro správu 3D scény a herních objektů.
- */
 class Game3D {
     constructor(options) {
         this.canvas = options.canvas;
@@ -62,26 +58,26 @@ class Game3D {
     }
 
     setupWorld() {
-        // Inicializace pomocných tříd
         this.player = new Player();
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
-        // Nastavení scény
         this.scene.fog = new THREE.Fog(0x101015, 15, 80);
         this.ambientLight = new THREE.AmbientLight(0x404040, 2.5);
         this.scene.add(this.ambientLight);
 
-        // Přidání objektů do scény
         this.scene.add(this.player.mesh);
+        
+        // OPRAVA: Přidáme všechny části prostředí do scény
         this.scene.add(this.environment.tunnel);
         this.scene.add(this.environment.floor);
+        this.scene.add(this.environment.floorGrid);
         this.scene.add(this.environment.dustParticles);
+        this.scene.add(this.environment.lightRings);
         
         this.shield = this.objectFactory.createShield();
         this.player.mesh.add(this.shield);
 
-        // Světla
         this.keyLight = new THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
         this.scene.add(this.keyLight);
         this.scene.add(this.keyLight.target);
@@ -91,29 +87,26 @@ class Game3D {
         [...this.gameObjects].forEach(o => this.scene.remove(o.mesh));
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        this.player.mesh.position.set(0, -0.6, 0);
+        this.player.mesh.position.set(0, 0, 0);
         this.player.mesh.visible = true;
         this.camera.position.set(0, 4, 10);
     }
     
     update(gameState, targetX, delta) {
-        // Pohyb hráče
         this.player.mesh.position.y = gameState.playerY;
         this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
         this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
-        this.player.update(); // Aktualizace efektů hráče
+        this.player.update();
 
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.mesh.position.z -= moveZ;
         
-        // Spawn nových objektů
         this.lastSpawnZ += moveZ;
         if (this.lastSpawnZ > (600 / gameState.speed)) {
             this.spawnObject();
             this.lastSpawnZ = 0;
         }
         
-        // Update vizuálních stavů (nesmrtelnost, štít)
         if (gameState.invincibilityTimer > 0) {
             this.player.mesh.visible = Math.floor(Date.now() / 100) % 2 === 0;
         } else {
@@ -125,8 +118,8 @@ class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
 
-        // Update ostatních součástí
-        this.environment.update(moveZ);
+        // OPRAVA: Předáváme pozici hráče pro správný update prostředí
+        this.environment.update(moveZ, this.player.mesh.position);
         this.updateGameObjects(delta);
         this.checkCollisions(gameState);
         this.cleanupObjects(gameState);

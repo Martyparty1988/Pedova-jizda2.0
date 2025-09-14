@@ -16,6 +16,9 @@ class Game3D {
         this.onCollision = options.onCollision;
         this.gameObjects = [];
         this.lastSpawnZ = 0;
+        // ZMĚNA: Sledování aktuální zóny
+        this.currentZone = 'sewer';
+        this.zoneLength = 2000; // Jak dlouho trvá jedna zóna
     }
 
     async init() {
@@ -70,7 +73,6 @@ class Game3D {
         
         this.scene.add(this.environment.tunnel);
         this.scene.add(this.environment.floor);
-        this.scene.add(this.environment.floorGrid);
         this.scene.add(this.environment.dustParticles);
         this.scene.add(this.environment.lightRings);
         
@@ -89,9 +91,11 @@ class Game3D {
         this.player.mesh.position.set(0, 0, 0);
         this.player.mesh.visible = true;
         this.camera.position.set(0, 4, 10);
-        // ZMĚNA: reset rotace hráče po konci hry
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
+        // ZMĚNA: Reset zóny na začátku hry
+        this.currentZone = 'sewer';
+        this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
     
     update(gameState, targetX, delta) {
@@ -100,7 +104,6 @@ class Game3D {
         this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
         this.player.update();
 
-        // ZMĚNA: Nová logika pro animaci triku (kickflip)
         if (gameState.isDoingTrick) {
             const rotationSpeed = 15;
             this.player.trickRotation += rotationSpeed * delta;
@@ -115,6 +118,17 @@ class Game3D {
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.mesh.position.z -= moveZ;
         
+        // ZMĚNA: Logika pro přepínání zón podle vzdálenosti
+        const distance = Math.abs(this.player.mesh.position.z);
+        const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
+        const zones = ['sewer', 'subway', 'datastream'];
+        const newZone = zones[zoneIndex];
+
+        if (newZone !== this.currentZone) {
+            this.currentZone = newZone;
+            this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+        }
+
         this.lastSpawnZ += moveZ;
         if (this.lastSpawnZ > (600 / gameState.speed)) {
             this.spawnObject();
@@ -132,7 +146,6 @@ class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
 
-        // ZMĚNA: Vizuální efekt pro Boost (Forsáž)
         if (gameState.isDashing) {
             this.player.engine.material.emissiveIntensity = 10;
             this.player.engine.scale.z = 2.5;
@@ -170,10 +183,6 @@ class Game3D {
         this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
         this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
         this.keyLight.target.updateMatrixWorld();
-
-        const zone = Math.floor(Math.abs(playerPos.z) / 200) % 3;
-        const colors = [0x404040, 0x401010, 0x104010];
-        this.ambientLight.color.setHex(colors[zone]);
     }
 
     triggerShieldBreakEffect() {
@@ -200,12 +209,15 @@ class Game3D {
         const zPos = this.player.mesh.position.z - 150;
         let newObject;
 
-        if (rand < 0.75) {
-            newObject = this.objectFactory.createObstacle(zPos);
-        } else if (rand < 0.9) {
+        // ZMĚNA: Přidána šance na spawn života
+        if (rand < 0.70) { // 70% šance na překážku
+            newObject = this.objectFactory.createObstacle(zPos, this.currentZone);
+        } else if (rand < 0.85) { // 15% šance na speed
             newObject = this.objectFactory.createPowerup('speed', zPos);
-        } else {
+        } else if (rand < 0.95) { // 10% šance na štít
             newObject = this.objectFactory.createPowerup('shield', zPos);
+        } else { // 5% šance na život
+            newObject = this.objectFactory.createPowerup('life', zPos);
         }
         
         this.scene.add(newObject.mesh);

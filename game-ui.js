@@ -1,5 +1,3 @@
-// game-ui.js
-
 import { ANALYSIS_QUOTES, HLASKY_JSON } from './game-assets.js';
 
 class GameUI {
@@ -10,14 +8,15 @@ class GameUI {
     }
 
     getDOMElements() {
-        // OPRAVA: Přidáno chybějící ID 'game-canvas' do seznamu
         const ids = [
             'loading-screen', 'main-menu', 'game-screen', 'game-over', 'play-btn', 
             'restart-btn', 'menu-btn', 'current-score', 'final-score', 'best-score', 
             'game-time', 'pause-btn', 'skill-doubleJump', 'skill-dash', 'loading-text', 
             'ai-summary-container', 'ai-summary-spinner', 'ai-summary-text', 
             'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 
-            'webgl-fallback', 'game-canvas' 
+            'webgl-fallback', 'game-canvas',
+            // ZMĚNA: Přidáno ID pro kontejner životů
+            'lives-container'
         ];
         ids.forEach(id => {
             const el = document.getElementById(id);
@@ -72,6 +71,21 @@ class GameUI {
             if (!el) continue;
             el.classList.toggle('unlocked', skillData.unlocked);
             el.classList.toggle('cooldown', skillData.cooldown > 0);
+        }
+    }
+
+    // ZMĚNA: Nová funkce pro aktualizaci zobrazení životů
+    updateLives(livesCount) {
+        const container = this.elements['lives-container'];
+        if (!container) return;
+        
+        container.innerHTML = ''; // Vyčistit předchozí stav
+        for (let i = 0; i < livesCount; i++) {
+            const lifeIcon = document.createElement('div');
+            lifeIcon.classList.add('life-icon');
+            // Můžete použít SVG nebo textový symbol, např. '♥' nebo '💀'
+            lifeIcon.textContent = '♥'; 
+            container.appendChild(lifeIcon);
         }
     }
 

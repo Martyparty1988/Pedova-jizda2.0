@@ -19,8 +19,6 @@ export class Game3D {
         this.currentZone = 'aurora';
         this.zoneLength = 2000;
         this.trailPoints = [];
-
-        // VYLEPŠENÍ: Inicializace stavu pro úvodní animaci kamery
         this.introAnimation = { active: false, timer: 0, duration: 1.5 };
     }
 
@@ -28,8 +26,6 @@ export class Game3D {
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
         this.clock = new THREE.Clock();
-        
-        // VYLEPŠENÍ: Vytvoříme si vlastní, menší hitbox pro hráče
         this.playerCollider = new THREE.Box3();
         this.obstacleCollider = new THREE.Box3();
 
@@ -67,6 +63,9 @@ export class Game3D {
 
     setupWorld() {
         this.player = new Player();
+        // VYLEPŠENÍ: Zajistíme, aby byl hráč vždy viditelný
+        this.player.mesh.frustumCulled = false;
+        
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
@@ -78,6 +77,9 @@ export class Game3D {
         this.player.mesh.visible = false;
         
         this.scene.add(this.environment.tunnel);
+        // VYLEPŠENÍ: Přidáme do scény novou viditelnou kostru tunelu
+        this.scene.add(this.environment.tunnelWireframe);
+        
         this.scene.add(this.environment.floor);
         this.scene.add(this.environment.dustParticles);
         this.scene.add(this.environment.lightRings);
@@ -110,8 +112,6 @@ export class Game3D {
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
         this.trail.geometry.setIndex([]);
         this.trail.geometry.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
-
-        // VYLEPŠENÍ: Aktivujeme úvodní animaci kamery
         this.introAnimation.active = true;
         this.introAnimation.timer = 0;
     }
@@ -122,11 +122,12 @@ export class Game3D {
         this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
         this.camera.rotation.y = Math.sin(Date.now() * 0.0001) * 0.1;
         
-        this.environment.update(delta * 5, this.camera.position, delta);
+        this.environment.update(delta * 5, this.camera.position, this.clock.getElapsedTime());
         this.composer.render();
     }
     
     update(gameState, targetX, delta) {
+        const totalTime = this.clock.getElapsedTime();
         this.player.mesh.position.y = gameState.playerY;
         this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
         this.player.update(delta);
@@ -169,7 +170,7 @@ export class Game3D {
             this.shield.rotation.x += delta * 0.5;
         }
         
-        this.environment.update(moveZ, this.player.mesh.position, delta);
+        this.environment.update(moveZ, this.player.mesh.position, totalTime);
         this.updateGameObjects(delta);
         this.checkCollisions();
         this.cleanupObjects(gameState);
@@ -223,23 +224,16 @@ export class Game3D {
 
     updateCameraAndLights(delta) {
         const playerPos = this.player.mesh.position;
-
-        // VYLEPŠENÍ: Logika pro úvodní animaci kamery
         if (this.introAnimation.active) {
             this.introAnimation.timer += delta;
             const progress = Math.min(this.introAnimation.timer / this.introAnimation.duration, 1);
-            
-            // Plynulý přechod z počáteční do cílové pozice
             const startPos = new THREE.Vector3(0, 8, playerPos.z + 12);
             const endPos = new THREE.Vector3(playerPos.x * 0.5, playerPos.y + 3, playerPos.z + 10);
-            
-            this.camera.position.lerpVectors(startPos, endPos, progress * progress); // Ease-in efekt
-
+            this.camera.position.lerpVectors(startPos, endPos, progress * progress);
             if (progress >= 1) {
                 this.introAnimation.active = false;
             }
         } else {
-             // Standardní sledování hráče
             this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
             this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
             this.camera.position.z = playerPos.z + 10;
@@ -270,7 +264,6 @@ export class Game3D {
 
     spawnObject() { 
         const rand = Math.random();
-        // VYLEPŠENÍ: Objekty se objevují dál
         const zPos = this.player.mesh.position.z - 180;
         let newObject;
 
@@ -294,8 +287,6 @@ export class Game3D {
     
     checkCollisions() {
         if (!this.player.mesh.visible) return;
-        
-        // VYLEPŠENÍ: Používáme menší, přesnější hitbox pro hráče
         const colliderSize = new THREE.Vector3(0.7, 0.7, 0.7);
         this.playerCollider.setFromCenterAndSize(this.player.mesh.position, colliderSize);
 

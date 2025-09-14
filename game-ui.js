@@ -5,6 +5,7 @@ class GameUI {
         this.elements = {};
         this.getDOMElements();
         this.quoteTimeout = null;
+        this.scoreAnimationInterval = null; // ZMĚNA: Přidáno pro řízení animace skóre
     }
 
     getDOMElements() {
@@ -14,9 +15,7 @@ class GameUI {
             'game-time', 'pause-btn', 'skill-doubleJump', 'skill-dash', 'loading-text', 
             'ai-summary-container', 'ai-summary-spinner', 'ai-summary-text', 
             'analyze-run-btn', 'quote-display', 'quote-text', 'game-over-quote', 
-            'webgl-fallback', 'game-canvas',
-            // ZMĚNA: Přidáno ID pro kontejner životů
-            'lives-container'
+            'webgl-fallback', 'game-canvas', 'lives-container'
         ];
         ids.forEach(id => {
             const el = document.getElementById(id);
@@ -29,6 +28,11 @@ class GameUI {
     }
     
     showScreen(id) {
+        // Zastavení případné běžící animace skóre
+        if (this.scoreAnimationInterval) {
+            clearInterval(this.scoreAnimationInterval);
+            this.scoreAnimationInterval = null;
+        }
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
         if (this.elements[id]) {
             this.elements[id].classList.add('active');
@@ -54,15 +58,47 @@ class GameUI {
         }
     }
     
+    // ZMĚNA: Funkce kompletně přepsána pro animaci dopočítávání skóre
     showGameOver(stats) {
-        this.elements['final-score'].textContent = stats.score;
-        this.elements['best-score'].textContent = stats.bestScore;
-        this.elements['game-time'].textContent = stats.time + 's';
-        this.elements['game-over-quote'].textContent = this.getRandomQuote('gameover');
-        this.elements['ai-summary-container'].style.display = 'none';
-        this.elements['analyze-run-btn'].style.display = 'block';
-        this.elements['analyze-run-btn'].disabled = false;
+        const finalScoreEl = this.elements['final-score'];
+        const bestScoreEl = this.elements['best-score'];
+        const gameTimeEl = this.elements['game-time'];
+        const quoteEl = this.elements['game-over-quote'];
+        const aiContainer = this.elements['ai-summary-container'];
+        const analyzeBtn = this.elements['analyze-run-btn'];
+
+        if (!finalScoreEl || !bestScoreEl || !gameTimeEl || !quoteEl) return;
+
+        // Nastavení statických textů
+        bestScoreEl.textContent = stats.bestScore;
+        gameTimeEl.textContent = stats.time + 's';
+        quoteEl.textContent = this.getRandomQuote('gameover');
+        
+        // Reset AI shrnutí
+        aiContainer.style.display = 'none';
+        aiContainer.classList.remove('active');
+        analyzeBtn.style.display = 'block';
+        analyzeBtn.disabled = false;
+
         this.showScreen('game-over');
+
+        // Animace dopočítávání skóre
+        let currentScore = 0;
+        const targetScore = stats.score;
+        const duration = 1000; // 1 sekunda
+        const increment = targetScore / (duration / 16); // Cca 60 FPS
+
+        if (this.scoreAnimationInterval) clearInterval(this.scoreAnimationInterval);
+
+        this.scoreAnimationInterval = setInterval(() => {
+            currentScore += increment;
+            if (currentScore >= targetScore) {
+                currentScore = targetScore;
+                clearInterval(this.scoreAnimationInterval);
+                this.scoreAnimationInterval = null;
+            }
+            finalScoreEl.textContent = Math.floor(currentScore);
+        }, 16);
     }
     
     updateSkillUI(skills) {
@@ -74,16 +110,14 @@ class GameUI {
         }
     }
 
-    // ZMĚNA: Nová funkce pro aktualizaci zobrazení životů
     updateLives(livesCount) {
         const container = this.elements['lives-container'];
         if (!container) return;
         
-        container.innerHTML = ''; // Vyčistit předchozí stav
+        container.innerHTML = '';
         for (let i = 0; i < livesCount; i++) {
             const lifeIcon = document.createElement('div');
             lifeIcon.classList.add('life-icon');
-            // Můžete použít SVG nebo textový symbol, např. '♥' nebo '💀'
             lifeIcon.textContent = '♥'; 
             container.appendChild(lifeIcon);
         }
@@ -118,17 +152,22 @@ class GameUI {
 
     analyzeRun() {
         const btn = this.elements['analyze-run-btn'];
+        const container = this.elements['ai-summary-container'];
+        const spinner = this.elements['ai-summary-spinner'];
+        const textEl = this.elements['ai-summary-text'];
+        
         btn.disabled = true;
         btn.style.display = 'none';
 
-        this.elements['ai-summary-container'].style.display = 'block';
-        this.elements['ai-summary-spinner'].style.display = 'block';
-        this.elements['ai-summary-text'].textContent = '';
+        container.style.display = 'block';
+        container.classList.add('active');
+        spinner.style.display = 'block';
+        textEl.textContent = '';
         
         setTimeout(() => {
             const quote = ANALYSIS_QUOTES[Math.floor(Math.random() * ANALYSIS_QUOTES.length)];
-            this.elements['ai-summary-text'].textContent = quote;
-            this.elements['ai-summary-spinner'].style.display = 'none';
+            textEl.textContent = quote;
+            spinner.style.display = 'none';
         }, 1000);
     }
 }

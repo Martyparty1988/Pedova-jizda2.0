@@ -5,13 +5,22 @@ const assetsToCache = [
   './',
   'index.html',
   'manifest.json',
-  'icons/icon-16x16.png',
-  'icons/icon-32x32.png',
-  'icons/icon-180x180.png',
-  'icons/icon-192x192.png',
+  'style.css',
+  'main.js',
+  'game-core.js',
+  'game-3d.js',
+  'game-ui.js',
+  'game-audio.js',
+  'game-logic.js',
+  'game-assets.js',
+  'bg-tunnel.svg', // Přidán nový asset
+  'icons/icon-512x512.png',
   'icons/icon-256x256.png',
-  'icons/icon-512x512.jpg', // Opravená cesta na .jpg
-  // Externí zdroje jako Skypack a Google Fonts jsou také potřeba
+  'icons/icon-192x192.png',
+  'icons/icon-180x180.png',
+  'icons/icon-32x32.png',
+  'icons/icon-16x16.png',
+  // Externí zdroje
   'https://cdn.skypack.dev/three@0.132.2',
   'https://cdn.skypack.dev/three@0.132.2/examples/jsm/objects/Reflector.js',
   'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js',
@@ -21,11 +30,6 @@ const assetsToCache = [
   'https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,700;1,400&family=Teko:wght@400;600&display=swap'
 ];
 
-/**
- * Událost 'install':
- * Spustí se při první instalaci Service Workeru.
- * Otevře cache a vloží do ní všechny definované assety.
- */
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -39,12 +43,6 @@ self.addEventListener('install', event => {
   );
 });
 
-/**
- * Událost 'activate':
- * Spustí se, když je nový Service Worker aktivován.
- * Projde všechny existující cache a smaže ty, které neodpovídají aktuální verzi (CACHE_NAME).
- * Tím je zajištěno, že se používají vždy nejnovější soubory.
- */
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
@@ -61,17 +59,7 @@ self.addEventListener('activate', event => {
   return self.clients.claim();
 });
 
-/**
- * Událost 'fetch':
- * Zachytává všechny síťové požadavky ze stránky.
- * Implementuje strategii "Stale-While-Revalidate":
- * 1. Okamžitě se pokusí odpovědět souborem z cache (rychlé načtení).
- * 2. Současně pošle požadavek na síť, aby získal nejnovější verzi.
- * 3. Pokud je síťový požadavek úspěšný, aktualizuje soubor v cache pro příští návštěvu.
- * 4. Pokud soubor v cache není, čeká na odpověď ze sítě.
- */
 self.addEventListener('fetch', event => {
-  // Ignorujeme požadavky, které nejsou typu GET
   if (event.request.method !== 'GET') {
     return;
   }
@@ -81,19 +69,17 @@ self.addEventListener('fetch', event => {
       const cachedResponse = await cache.match(event.request);
       
       const fetchPromise = fetch(event.request).then((networkResponse) => {
-        // Pokud je odpověď ze sítě v pořádku, aktualizujeme cache
         if (networkResponse && networkResponse.status === 200) {
           cache.put(event.request, networkResponse.clone());
         }
         return networkResponse;
       }).catch(error => {
         console.warn('[Service Worker] Síťový požadavek selhal. Použije se cache, pokud je dostupná.', error);
-        // Pokud síť selže, vrátíme alespoň to, co je v cache
         return cachedResponse;
       });
 
-      // Vrátíme odpověď z cache, pokud existuje (pro rychlost), jinak čekáme na síť
       return cachedResponse || fetchPromise;
     })
   );
 });
+

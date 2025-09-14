@@ -43,7 +43,12 @@
     <div id="game-screen" class="screen">
         <canvas id="game-canvas"></canvas>
         <div class="game-hud">
-            <div class="hud-panel"><div class="cyber-score" id="current-score">0</div></div>
+            <div class="hud-panel">
+                <div class="cyber-score" id="current-score">0</div>
+                <div class="lives-container" id="lives-container"></div>
+                 <!-- ZMĚNA: Přidán prvek pro ikonu štítu -->
+                <div id="shield-icon" class="shield-icon"></div>
+            </div>
             <div class="hud-panel"><button id="pause-btn">||</button></div>
         </div>
         <div class="skill-indicator">
@@ -90,3 +95,4 @@
     <script type="module" src="main.js"></script>
 </body>
 </html>
+

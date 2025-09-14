@@ -61,20 +61,33 @@
     </div>
 
     <div id="game-over" class="screen">
-        <div class="glass-panel">
-            <h2 style="font-size: 3rem; color: var(--junkie-magenta); text-transform:uppercase; letter-spacing: 2px;">KONEC JÍZDY</h2>
-            <p id="game-over-quote" style="font-family:'Roboto Condensed', sans-serif; font-style: italic; color: var(--text-dim); margin-bottom: 20px; font-size: 1.1rem;"></p>
-            <div class="final-score" id="final-score">0</div>
-            <div class="stats-grid">
-                <div class="stat-item"><div class="stat-label">Nejlepší trip</div><div class="stat-value" id="best-score">0</div></div>
-                <div class="stat-item"><div class="stat-label">Doba jízdy</div><div class="stat-value" id="game-time">0s</div></div>
+        <div class="game-over-content">
+            <h2 class="game-over-title" data-text="KONEC JÍZDY">KONEC JÍZDY</h2>
+            <p id="game-over-quote" class="game-over-quote"></p>
+            
+            <div class="final-score-container">
+                <div class="final-score-label">DOSAŽENÉ SKÓRE</div>
+                <div class="final-score" id="final-score">0</div>
             </div>
-            <div id="ai-summary-container" style="margin: 20px 0; display: none;">
-                <h3 style="color: var(--junkie-cyan); font-size:1.5rem; letter-spacing: 1px;">ZHODNOCENÍ ABSŤÁKU</h3>
-                <div id="ai-summary-spinner" class="loading-spinner" style="width: 30px; height: 30px; margin: 15px auto;"></div>
-                <p id="ai-summary-text" style="font-family:'Roboto Condensed', sans-serif; font-style: italic; color: var(--text-dim); font-size: 1.1rem;"></p>
+
+            <div class="stats-grid" id="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Nejlepší trip</div>
+                    <div class="stat-value" id="best-score">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Doba jízdy</div>
+                    <div class="stat-value" id="game-time">0s</div>
+                </div>
             </div>
-            <div class="menu-buttons" style="display: flex; flex-direction: column; gap: 0;">
+
+            <div id="ai-summary-container" class="ai-summary-container">
+                <h3 class="ai-summary-title">ZHODNOCENÍ ABSŤÁKU</h3>
+                <div id="ai-summary-spinner" class="loading-spinner"></div>
+                <p id="ai-summary-text"></p>
+            </div>
+
+            <div class="menu-buttons">
                 <button class="cyber-btn" id="restart-btn">🔄 Zkusit to znovu</button>
                 <button class="cyber-btn" id="analyze-run-btn">✍️ Zobrazit hodnocení</button>
                 <button class="cyber-btn" id="menu-btn">🏠 Zpátky na ulici</button>

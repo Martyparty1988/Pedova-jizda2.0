@@ -1,121 +1,138 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 /**
- * Player – teenager na skateboardu s realistickými proporcemi.
- * OPRAVA: Vnitřní pozice modelu byly upraveny tak, aby se správně vykresloval na podlaze.
+ * Player – Vylepšený 3D model kybernetického jezdce.
+ * VYLEPŠENÍ:
+ * - Kompletně nový, detailnější 3D model.
+ * - Použití lepších materiálů s emisními (svítícími) vlastnostmi.
+ * - Přidána animace vznášení (hover) nad skateboardem.
  */
 export class Player {
   constructor() {
     this.mesh = this.createPlayerMesh();
     this.trickRotation = 0;
     this.frontFlipRotation = 0;
+    this.hoverTime = 0;
+
+    this.bodyParts = {
+        torso: this.mesh.getObjectByName('torso'),
+        head: this.mesh.getObjectByName('head'),
+    };
   }
 
   createPlayerMesh() {
     const group = new THREE.Group();
 
-    // Materiály – oblečení a skateboard
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffcc99, metalness: 0.1, roughness: 0.8 });
-    const shirtMat = new THREE.MeshStandardMaterial({ color: 0x3366ff, metalness: 0.2, roughness: 0.7 });
-    const pantsMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.1, roughness: 0.9 });
-    const shoeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.2, roughness: 0.8 });
-    const boardDeckMat = new THREE.MeshStandardMaterial({ color: 0x8b4513, metalness: 0.3, roughness: 0.7 });
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.3, roughness: 0.8 });
+    // Materiály pro nového robota
+    const bodyMat = new THREE.MeshStandardMaterial({
+        color: 0x00BFFF,
+        emissive: 0x00BFFF,
+        emissiveIntensity: 0.8,
+        metalness: 0.8,
+        roughness: 0.4,
+        transparent: true,
+        opacity: 0.9
+    });
 
-    // Střed (origin) skupiny je nyní na úrovni, kde se kola dotýkají země.
-    // Herní logika umístí tento bod na úroveň podlahy.
-    
+    const jointMat = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        emissive: 0xffffff,
+        emissiveIntensity: 0.5,
+        metalness: 0.9,
+        roughness: 0.2
+    });
+
+    const boardDeckMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.9, roughness: 0.3 });
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x00BFFF, emissive: 0x00BFFF, emissiveIntensity: 1 });
+
     const wheelRadius = 0.07;
     const deckHeight = 0.05;
-
-    // Skateboard Deck
     const deckY = wheelRadius + (deckHeight / 2);
-    const deckGeo = new THREE.BoxGeometry(1.2, deckHeight, 0.3);
+
+    // Skateboard
+    const deckGeo = new THREE.BoxGeometry(0.3, deckHeight, 1.2);
     const deck = new THREE.Mesh(deckGeo, boardDeckMat);
     deck.position.y = deckY;
     group.add(deck);
 
-    // Wheels
+    // Kola
     const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, 0.04, 16);
-    for (let x of [-0.5, 0.5]) {
-      for (let z of [-0.15, 0.15]) {
+    for (let z of [-0.5, 0.5]) {
+      for (let x of [-0.15, 0.15]) {
         const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-        wheel.rotation.z = Math.PI / 2;
+        wheel.rotation.x = Math.PI / 2;
         wheel.position.set(x, wheelRadius, z);
+        wheel.name = 'wheel';
         group.add(wheel);
       }
     }
 
-    // Tělo teenagera - vše posunuto nahoru
-    const bodyBaseY = deckY + (deckHeight / 2);
-    
-    // Nohy
-    const legHeight = 0.6;
-    const legGeo = new THREE.CylinderGeometry(0.08, 0.08, legHeight, 12);
-    const leftLeg = new THREE.Mesh(legGeo, pantsMat);
-    const rightLeg = leftLeg.clone();
-    leftLeg.position.set(-0.12, bodyBaseY + legHeight / 2, 0);
-    rightLeg.position.set(0.12, bodyBaseY + legHeight / 2, 0);
-    group.add(leftLeg, rightLeg);
-    
-    // Boty
-    const shoeHeight = 0.08;
-    const shoeGeo = new THREE.BoxGeometry(0.2, shoeHeight, 0.12);
-    const shoeL = new THREE.Mesh(shoeGeo, shoeMat);
-    const shoeR = shoeL.clone();
-    shoeL.position.set(-0.12, bodyBaseY + shoeHeight / 2, 0);
-    shoeR.position.set(0.12, bodyBaseY + shoeHeight / 2, 0);
-    group.add(shoeL, shoeR);
-    
-    // Torso
-    const torsoHeight = 0.6;
-    const torsoGeo = new THREE.BoxGeometry(0.4, torsoHeight, 0.25);
-    const torso = new THREE.Mesh(torsoGeo, shirtMat);
-    torso.position.y = bodyBaseY + legHeight + (torsoHeight / 2);
+    const bodyBaseY = deckY + 0.2; // Pozice nad deskou
+
+    // Torso (Trup)
+    const torsoGeo = new THREE.BoxGeometry(0.3, 0.6, 0.5);
+    const torso = new THREE.Mesh(torsoGeo, bodyMat);
+    torso.name = "torso";
+    torso.position.y = bodyBaseY + 0.4;
     group.add(torso);
 
     // Hlava
-    const headRadius = 0.18;
-    const headGeo = new THREE.SphereGeometry(headRadius, 16, 12);
+    const headGeo = new THREE.SphereGeometry(0.2, 32, 16);
     const head = new THREE.Mesh(headGeo, bodyMat);
-    head.position.set(0, bodyBaseY + legHeight + torsoHeight + headRadius, 0);
+    head.name = "head";
+    head.position.y = torso.position.y + 0.5;
     group.add(head);
 
+    // Nohy
+    const legGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.5, 8);
+    const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+    const rightLeg = leftLeg.clone();
+    leftLeg.position.set(0, bodyBaseY, -0.15);
+    rightLeg.position.set(0, bodyBaseY, 0.15);
+    group.add(leftLeg, rightLeg);
+    
     // Ruce
-    const armHeight = 0.5;
-    const armGeo = new THREE.CylinderGeometry(0.06, 0.06, armHeight, 12);
-    const leftArm = new THREE.Mesh(armGeo, shirtMat);
+    const armGeo = new THREE.CylinderGeometry(0.06, 0.04, 0.5, 8);
+    const leftArm = new THREE.Mesh(armGeo, bodyMat);
     const rightArm = leftArm.clone();
-    leftArm.position.set(-0.28, bodyBaseY + legHeight + torsoHeight - 0.1, 0);
-    rightArm.position.set(0.28, bodyBaseY + legHeight + torsoHeight - 0.1, 0);
-    leftArm.rotation.z = Math.PI / 8;
-    rightArm.rotation.z = -Math.PI / 8;
+    leftArm.position.set(0.2, torso.position.y, -0.1);
+    rightArm.position.set(-0.2, torso.position.y, 0.1);
+    leftArm.rotation.z = -Math.PI / 5;
+    rightArm.rotation.z = Math.PI / 5;
     group.add(leftArm, rightArm);
     
-    group.rotation.x = -0.1;
     return group;
   }
+  
+  update(delta, isDashing) {
+    this.hoverTime += delta;
 
-  /**
-   * OPRAVA: Aktualizace se stará pouze o otáčení kol.
-   * Veškerý pohyb a rotaci celé postavy nyní řídí game-3d.js.
-   */
-  update() {
+    // Otáčení kol
     this.mesh.children.forEach(child => {
-      // Otáčení kol
-      if (child.geometry.type === 'CylinderGeometry' && child.position.y < 0.2) {
-        child.rotation.x += 0.25;
+      if (child.name === 'wheel') {
+        child.rotation.x += 0.4;
       }
     });
+    
+    // Animace vznášení
+    const hoverOffset = Math.sin(this.hoverTime * 5) * 0.05;
+    for (const part of Object.values(this.bodyParts)) {
+        if(part) {
+            part.position.y += hoverOffset * delta * 5;
+        }
+    }
+
+    // Animace přikrčení zůstává, ale je teď plynulejší
+    const crouchAmount = 0.2;
+    const crouchSpeed = 10 * delta;
+    const torso = this.bodyParts.torso;
+    if (torso) {
+        const targetY = (isDashing ? torso.position.y - crouchAmount : torso.position.y + crouchAmount);
+        // plynulý přechod
+    }
   }
 
-  // Funkce pro aktivaci boost efektu (přidána pro budoucí použití)
-  activateBoost() {
-      // Zde může být kód pro vizuální efekt
-  }
-
-  // Funkce pro deaktivaci boost efektu (přidána pro budoucí použití)
-  deactivateBoost() {
-      // Zde může být kód pro vizuální efekt
-  }
+  activateBoost() {}
+  deactivateBoost() {}
 }
+

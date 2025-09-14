@@ -6,56 +6,59 @@ import { Reflector } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/ob
  */
 export class Environment {
     constructor() {
-        // Tunel
-        const { mesh: tunnel, texture: tunnelTexture } = this.createTunnel();
+        // ZMĚNA: Používáme novou funkci pro vytvoření futuristického tunelu
+        const { mesh: tunnel, texture: tunnelTexture } = this.createFuturisticTunnel();
         this.tunnel = tunnel;
         this.tunnelTexture = tunnelTexture;
 
-        // Podlaha
-        this.floor = this.createFloor();
+        // ZMĚNA: Používáme novou funkci pro vytvoření futuristické podlahy
+        this.floor = this.createFuturisticFloor();
+        
+        // ZMĚNA: Používáme novou funkci pro vytvoření digitálních částic
+        this.dustParticles = this.createDigitalParticles();
 
-        // Částice
-        this.dustParticles = this.createDustParticles();
-
-        // Světelné prstence pro efekt rychlosti
         this.lightRings = this.createLightRings();
 
-        // ZMĚNA: Připravené textury a barvy pro zóny
+        // ZMĚNA: Témata zón upravena pro high-tech vzhled. Zóny se nyní liší jen barevným schématem.
         this.zoneThemes = {
-            sewer: {
-                fogColor: 0x101510,
-                ambientColor: 0x104010,
-                ringColor: 0x33FF33,
-            },
-            subway: {
-                fogColor: 0x151510,
-                ambientColor: 0x404010,
-                ringColor: 0xFFD700,
-            },
-            datastream: {
-                fogColor: 0x101015,
-                ambientColor: 0x101040,
+            cyber_cyan: {
+                fogColor: 0x050810,
+                ambientColor: 0x080820,
                 ringColor: 0x00BFFF,
+                particleColor: 0x00BFFF,
+            },
+            cyber_magenta: {
+                fogColor: 0x100508,
+                ambientColor: 0x200808,
+                ringColor: 0xFF007F,
+                particleColor: 0xFF007F,
+            },
+            cyber_lime: {
+                fogColor: 0x081005,
+                ambientColor: 0x082008,
+                ringColor: 0x39FF14,
+                particleColor: 0x39FF14,
             }
         };
     }
 
     /**
-     * Vytvoří moderní osmiúhelníkový tunel.
+     * ZMĚNA: Vytvoří high-tech osmiúhelníkový tunel s novou texturou.
      * @returns {{mesh: THREE.Mesh, texture: THREE.CanvasTexture}}
      */
-    createTunnel() {
-        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 8, 1, true); // 8 stran pro osmiúhelník
-        const tunnelTex = this.createProceduralTunnelTexture();
+    createFuturisticTunnel() {
+        const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 8, 1, true);
+        const tunnelTex = this.createFuturisticHexTexture(); // Nová textura
         tunnelTex.wrapS = THREE.RepeatWrapping;
         tunnelTex.wrapT = THREE.RepeatWrapping;
-        tunnelTex.repeat.set(1, 4); // Opakování textury
+        tunnelTex.repeat.set(8, 4); // Více opakování pro detailnější vzor
 
         const tunnelMat = new THREE.MeshStandardMaterial({
             map: tunnelTex,
             side: THREE.BackSide,
-            roughness: 0.6,
-            metalness: 0.3
+            roughness: 0.4,
+            metalness: 0.8, // Lesklejší povrch
+            emissive: 0x111111, // Jemné vlastní svícení
         });
 
         const mesh = new THREE.Mesh(tunnelGeo, tunnelMat);
@@ -63,26 +66,27 @@ export class Environment {
     }
 
     /**
-     * Vytvoří podlahu s reflexním povrchem a mřížkou.
+     * ZMĚNA: Vytvoří reflexní podlahu s novou digitální mřížkou.
      * @returns {Reflector}
      */
-    createFloor() {
+    createFuturisticFloor() {
         const floorGeo = new THREE.PlaneGeometry(12, 200);
         const floor = new Reflector(floorGeo, {
             clipBias: 0.003,
             textureWidth: window.innerWidth * window.devicePixelRatio,
             textureHeight: window.innerHeight * window.devicePixelRatio,
-            color: 0x222222,
+            color: 0x080810, // Tmavě modrý odstín
+            recursion: 1,
         });
 
-        const gridTexture = this.createGridTexture();
+        const gridTexture = this.createFuturisticGridTexture(); // Nová textura
         gridTexture.wrapS = THREE.RepeatWrapping;
         gridTexture.wrapT = THREE.RepeatWrapping;
         gridTexture.repeat.set(6, 100);
 
         const floorMaterial = floor.material;
         floorMaterial.uniforms.tDiffuse.value = gridTexture;
-        floorMaterial.uniforms.color.value.set(0x333333);
+        floorMaterial.uniforms.color.value.set(0x080810);
         
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = -1;
@@ -91,13 +95,13 @@ export class Environment {
     }
 
     /**
-     * Vytvoří poletující částice pro atmosféru.
+     * ZMĚNA: Vytvoří částice připomínající digitální data.
      * @returns {THREE.Points}
      */
-    createDustParticles() {
+    createDigitalParticles() {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
-        for (let i = 0; i < 300; i++) {
+        for (let i = 0; i < 500; i++) { // Více částic
             vertices.push(
                 (Math.random() - 0.5) * 20,
                 Math.random() * 10,
@@ -105,26 +109,27 @@ export class Environment {
             );
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        
+        // Použití malé čtvercové textury pro částice
+        const particleTexture = new THREE.CanvasTexture(this.createParticleCanvas());
         const material = new THREE.PointsMaterial({
-            size: 0.08,
+            size: 0.15,
             color: 0x00BFFF,
             transparent: true,
-            opacity: 0.3
+            opacity: 0.5,
+            map: particleTexture,
+            blending: THREE.AdditiveBlending, // Efekt záře při překrytí
         });
         return new THREE.Points(geometry, material);
     }
     
-    /**
-     * Vytvoří skupinu světelných prstenců.
-     * @returns {THREE.Group}
-     */
     createLightRings() {
         const group = new THREE.Group();
         const ringGeo = new THREE.RingGeometry(9.5, 9.8, 8, 1);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0x00BFFF, side: THREE.DoubleSide, opacity: 0.7, transparent: true });
 
         for (let i = 0; i < 5; i++) {
-            const ring = new THREE.Mesh(ringGeo, ringMat.clone()); // Klonujeme materiál pro změnu barvy
+            const ring = new THREE.Mesh(ringGeo, ringMat.clone());
             ring.rotation.x = Math.PI / 2;
             ring.position.z = -i * 40;
             group.add(ring);
@@ -133,63 +138,82 @@ export class Environment {
     }
 
     /**
-     * Vytvoří procedurální texturu pro stěny tunelu.
+     * ZMĚNA: Vytvoří procedurální texturu s hexagonálním vzorem pro stěny tunelu.
      * @returns {THREE.CanvasTexture}
      */
-    createProceduralTunnelTexture() {
+    createFuturisticHexTexture() {
         const canvas = document.createElement('canvas');
-        canvas.width = 128;
-        canvas.height = 512;
+        canvas.width = 256;
+        canvas.height = 256;
         const ctx = canvas.getContext('2d');
         
-        ctx.fillStyle = '#101015';
+        ctx.fillStyle = '#050810'; // Tmavě modrý podklad
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.strokeStyle = '#202028';
-        ctx.lineWidth = 1;
-        for(let i = 0; i < canvas.width; i += 16) {
-            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-        }
-        for(let i = 0; i < canvas.height; i += 16) {
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
-        }
+        ctx.strokeStyle = 'rgba(0, 191, 255, 0.2)'; // Azurová barva s nízkou viditelností
+        ctx.lineWidth = 2;
 
-        ctx.strokeStyle = '#00BFFF';
-        ctx.lineWidth = 4;
-        ctx.globalAlpha = 0.5;
-        ctx.filter = 'blur(4px)';
-        ctx.beginPath(); ctx.moveTo(canvas.width / 4, 0); ctx.lineTo(canvas.width / 4, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(canvas.width * 3 / 4, 0); ctx.lineTo(canvas.width * 3 / 4, canvas.height); ctx.stroke();
+        const hexSize = 32;
+        const hexHeight = hexSize * Math.sqrt(3);
         
-        ctx.filter = 'none';
-        ctx.globalAlpha = 1.0;
-        
+        for (let row = -1; row < canvas.height / hexHeight + 1; row++) {
+            for (let col = -1; col < canvas.width / (hexSize * 1.5) + 1; col++) {
+                let x = col * hexSize * 1.5;
+                let y = row * hexHeight;
+                if (col % 2 === 1) {
+                    y += hexHeight / 2;
+                }
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 3) * i;
+                    ctx.lineTo(x + hexSize * Math.cos(angle), y + hexSize * Math.sin(angle));
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+        }
         return new THREE.CanvasTexture(canvas);
     }
 
     /**
-     * Vytvoří texturu mřížky pro podlahu.
+     * ZMĚNA: Vytvoří texturu digitální mřížky pro podlahu.
      * @returns {THREE.CanvasTexture}
      */
-    createGridTexture() {
+    createFuturisticGridTexture() {
         const canvas = document.createElement('canvas');
         canvas.width = 128;
         canvas.height = 128;
         const ctx = canvas.getContext('2d');
+        
         ctx.fillStyle = 'transparent';
         ctx.fillRect(0, 0, 128, 128);
 
-        ctx.strokeStyle = '#00BFFF';
-        ctx.lineWidth = 3;
-        ctx.globalAlpha = 0.3;
+        // Hlavní čáry
+        ctx.strokeStyle = 'rgba(0, 191, 255, 0.5)';
+        ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, 0); ctx.lineTo(0, 128);
         ctx.moveTo(0, 0); ctx.lineTo(128, 0);
         ctx.stroke();
+
+        // Tečka v rohu pro high-tech pocit
+        ctx.fillStyle = 'rgba(0, 191, 255, 0.8)';
+        ctx.fillRect(0,0,5,5);
+
         return new THREE.CanvasTexture(canvas);
     }
 
-    // ZMĚNA: Nová funkce pro nastavení vizuální zóny
+    // Pomocná funkce pro vytvoření textury pro částice
+    createParticleCanvas() {
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 32, 32);
+        return canvas;
+    }
+
     setZone(zone, scene, ambientLight) {
         const theme = this.zoneThemes[zone];
         if (!theme) return;
@@ -199,14 +223,10 @@ export class Environment {
         this.lightRings.children.forEach(ring => {
             ring.material.color.setHex(theme.ringColor);
         });
-        // Zde byste mohli měnit i texturu tunelu, pokud byste pro každou zónu vytvořili jinou
+        // ZMĚNA: Měníme i barvu částic
+        this.dustParticles.material.color.setHex(theme.particleColor);
     }
 
-    /**
-     * Aktualizuje animovatelné části prostředí.
-     * @param {number} moveZ O kolik se scéna posunula v Z ose.
-     * @param {THREE.Vector3} playerPosition Aktuální pozice hráče.
-     */
     update(moveZ, playerPosition) {
         this.tunnelTexture.offset.y -= moveZ * 0.01;
 

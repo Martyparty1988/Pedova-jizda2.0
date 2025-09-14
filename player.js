@@ -1,124 +1,79 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 /**
- * Player – Nový, zaoblený a stylizovaný model energetického jezdce.
- * OPRAVA: Nahrazena nekompatibilní CapsuleGeometry za CylinderGeometry.
+ * Player – Nový, abstraktní model zářícího energetického jádra.
+ * Nahrazuje všechny předchozí modely.
  */
 export class Player {
   constructor() {
     this.mesh = this.createPlayerMesh();
-    this.trickRotation = 0;
-    this.frontFlipRotation = 0;
-    this.hoverTime = Math.random() * Math.PI * 2; // Náhodný start animace
-
-    // Uložíme si části těla pro plynulejší animace
-    this.bodyParts = {
-        torso: this.mesh.getObjectByName('torso'),
-        head: this.mesh.getObjectByName('head'),
-        leftHand: this.mesh.getObjectByName('leftHand'),
-        rightHand: this.mesh.getObjectByName('rightHand'),
-    };
+    this.animationTime = Math.random() * Math.PI * 2;
   }
 
   createPlayerMesh() {
     const group = new THREE.Group();
 
-    // Materiály pro energetickou bytost
-    const bodyMat = new THREE.MeshStandardMaterial({
-        color: 0x00BFFF,
+    // Hlavní zářící jádro
+    const coreGeo = new THREE.IcosahedronGeometry(0.4, 1); // Mnohostěn pro "krystalový" vzhled
+    const coreMat = new THREE.MeshStandardMaterial({
+        color: 0x00ffff,
         emissive: 0x00BFFF,
-        emissiveIntensity: 1.2,
-        metalness: 0.2,
-        roughness: 0.1,
+        emissiveIntensity: 2.5,
+        metalness: 0.4,
+        roughness: 0.2,
         transparent: true,
-        opacity: 0.9,
+        opacity: 0.95
     });
+    const core = new THREE.Mesh(coreGeo, coreMat);
+    core.name = "core";
+    group.add(core);
 
-    const boardDeckMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, metalness: 0.9, roughness: 0.2, emissive: 0x222222 });
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x00BFFF, emissive: 0x00BFFF, emissiveIntensity: 2 });
+    // Vnější "silové pole" - drátěný model, který se otáčí opačně
+    const shellGeo = new THREE.IcosahedronGeometry(0.45, 1);
+    const shellMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        wireframe: true,
+        transparent: true,
+        opacity: 0.25
+    });
+    const shell = new THREE.Mesh(shellGeo, shellMat);
+    shell.name = "shell";
+    group.add(shell);
 
-    const wheelRadius = 0.08;
-    const deckHeight = 0.04;
-    const deckY = wheelRadius + (deckHeight / 2);
+    // Nastavíme počáteční pozici tak, aby se vznášel nad podlahou
+    group.position.y = 0.5;
 
-    // Skateboard - teď spíš hoverboard
-    // OPRAVA: Použita CylinderGeometry místo CapsuleGeometry
-    const deckGeo = new THREE.CylinderGeometry(0.2, 0.2, 1.4, 16); 
-    const deck = new THREE.Mesh(deckGeo, boardDeckMat);
-    deck.rotation.z = Math.PI / 2; // Otočíme válec, aby ležel naplocho
-    deck.position.y = deckY;
-    group.add(deck);
-
-    // Energetická kola
-    const wheelGeo = new THREE.TorusGeometry(wheelRadius, 0.03, 8, 24);
-    for (let z of [-0.5, 0.5]) {
-        const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-        wheel.rotation.y = Math.PI / 2;
-        wheel.position.set(0, wheelRadius, z);
-        wheel.name = 'wheel';
-        group.add(wheel);
-    }
-    
-    // Tělo postavy z koulí
-    const bodyBaseY = deckY + 0.3;
-
-    // Torso (Trup) - Větší koule
-    const torsoGeo = new THREE.SphereGeometry(0.35, 20, 16);
-    const torso = new THREE.Mesh(torsoGeo, bodyMat);
-    torso.name = "torso";
-    torso.position.y = bodyBaseY + 0.35;
-    group.add(torso);
-
-    // Hlava - Menší koule
-    const headGeo = new THREE.SphereGeometry(0.2, 20, 16);
-    const head = new THREE.Mesh(headGeo, bodyMat);
-    head.name = "head";
-    head.position.y = torso.position.y + 0.45;
-    group.add(head);
-
-    // Ruce - Malé koule
-    const handGeo = new THREE.SphereGeometry(0.1, 16, 12);
-    const leftHand = new THREE.Mesh(handGeo, bodyMat);
-    leftHand.name = "leftHand";
-    const rightHand = leftHand.clone();
-    rightHand.name = "rightHand";
-    leftHand.position.set(0.4, torso.position.y + 0.1, -0.1);
-    rightHand.position.set(-0.4, torso.position.y + 0.1, 0.1);
-    group.add(leftHand, rightHand);
-    
     return group;
   }
-  
-  update(delta, isDashing) {
-    this.hoverTime += delta;
 
-    // Otáčení kol
-    this.mesh.children.forEach(child => {
-      if (child.name === 'wheel') {
-        child.rotation.x += 0.4;
-      }
-    });
-    
-    // Plynulá animace vznášení pro každou část těla
-    const hoverSpeed = 3;
-    const hoverAmount = 0.03;
-    this.bodyParts.torso.position.y += Math.sin(this.hoverTime * hoverSpeed) * hoverAmount * delta * 10;
-    this.bodyParts.head.position.y += Math.sin(this.hoverTime * hoverSpeed + 1) * hoverAmount * delta * 10;
-    this.bodyParts.leftHand.position.x += Math.sin(this.hoverTime * hoverSpeed + 2) * hoverAmount * delta * 5;
-    this.bodyParts.rightHand.position.x += Math.sin(this.hoverTime * hoverSpeed + 3) * hoverAmount * delta * 5;
+  /**
+   * Animace jádra - pomalá rotace a vznášení.
+   */
+  update(delta) {
+    this.animationTime += delta;
 
-    // Přikrčení při skluzu
-    const crouchSpeed = 10 * delta;
-    if (isDashing) {
-        this.bodyParts.torso.scale.y += (0.8 - this.bodyParts.torso.scale.y) * crouchSpeed;
-        this.bodyParts.head.scale.y += (0.8 - this.bodyParts.head.scale.y) * crouchSpeed;
-    } else {
-        this.bodyParts.torso.scale.y += (1 - this.bodyParts.torso.scale.y) * crouchSpeed;
-        this.bodyParts.head.scale.y += (1 - this.bodyParts.head.scale.y) * crouchSpeed;
+    const core = this.mesh.getObjectByName('core');
+    const shell = this.mesh.getObjectByName('shell');
+
+    // Rotace každé části jinou rychlostí pro dynamický efekt
+    if (core) {
+        core.rotation.y += 0.8 * delta;
+        core.rotation.x += 0.5 * delta;
     }
+    if (shell) {
+        shell.rotation.y -= 1.0 * delta;
+    }
+
+    // Plynulé vznášení nahoru a dolů
+    this.mesh.position.y = 0.5 + Math.sin(this.animationTime * 1.5) * 0.1;
   }
 
-  activateBoost() {}
-  deactivateBoost() {}
+  activateBoost() {
+    // Zde můžeme v budoucnu přidat efekt pro zrychlení
+  }
+
+  deactivateBoost() {
+    // Zde můžeme v budoucnu přidat efekt pro zrychlení
+  }
 }
 

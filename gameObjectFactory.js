@@ -2,14 +2,40 @@ import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 const LANE_WIDTH = 4;
 
+// ZMĚNA: Předdefinované barevné materiály pro překážky
+const laserMat = new THREE.MeshBasicMaterial({ 
+    color: 0xFF007F, // Magentová
+    side: THREE.DoubleSide, 
+    transparent: true, 
+    opacity: 0.7,
+    blending: THREE.AdditiveBlending
+});
+
+const energyMat = new THREE.MeshStandardMaterial({
+    color: 0x39FF14, // Limetková
+    emissive: 0x39FF14,
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0.7
+});
+
+const dataBlockMat = new THREE.MeshStandardMaterial({ 
+    color: 0x333333, 
+    metalness: 0.9, 
+    roughness: 0.2, 
+    emissive: 0xFFD700, // Žlutá
+    emissiveIntensity: 0.6,
+    wireframe: true
+});
+
+
 /**
  * Továrna pro vytváření herních objektů (překážky, power-upy).
  */
 export class GameObjectFactory {
     
     /**
-     * ZMĚNA: Funkce kompletně přepsána pro generování futuristických překážek.
-     * Argument zoneType již není potřeba, protože styl je jednotný.
+     * Vytváří futuristické překážky s novými barevnými materiály.
      * @param {number} zPos - Pozice na ose Z.
      * @returns {object} Objekt obsahující mesh a další data překážky.
      */
@@ -22,13 +48,7 @@ export class GameObjectFactory {
             // Laserová stěna (přeskočit nebo podjet)
             const isHigh = Math.random() > 0.5;
             const geo = new THREE.PlaneGeometry(LANE_WIDTH * 3.2, 1);
-            const mat = new THREE.MeshBasicMaterial({ 
-                color: 0xff0000, 
-                side: THREE.DoubleSide, 
-                transparent: true, 
-                opacity: 0.7 
-            });
-            const laser = new THREE.Mesh(geo, mat);
+            const laser = new THREE.Mesh(geo, laserMat); // ZMĚNA: Použit nový materiál
             laser.position.y = isHigh ? 2.5 : 0;
             group.add(laser);
 
@@ -36,34 +56,19 @@ export class GameObjectFactory {
             // Energetické bariéry (proletět mezerou)
             const gapLane = Math.floor(Math.random() * 3);
             const geo = new THREE.BoxGeometry(LANE_WIDTH, 8, 0.5);
-            const mat = new THREE.MeshStandardMaterial({
-                color: 0xFFD700,
-                emissive: 0xFFD700,
-                emissiveIntensity: 0.8,
-                transparent: true,
-                opacity: 0.6
-            });
             for (let i = 0; i < 3; i++) {
                 if (i === gapLane) continue;
-                const bar = new THREE.Mesh(geo, mat);
+                const bar = new THREE.Mesh(geo, energyMat); // ZMĚNA: Použit nový materiál
                 bar.position.set((i - 1) * LANE_WIDTH, 3, 0);
                 group.add(bar);
             }
         
         } else {
             // Pohyblivý datový blok
-            const lane = Math.random() < 0.5 ? 0 : 2; // Startuje na kraji
-            const direction = lane === 0 ? 1 : -1; // Jde směrem ke středu
+            const lane = Math.random() < 0.5 ? 0 : 2;
+            const direction = lane === 0 ? 1 : -1;
             const geo = new THREE.BoxGeometry(LANE_WIDTH - 2, LANE_WIDTH - 2, LANE_WIDTH - 2);
-            const mat = new THREE.MeshStandardMaterial({ 
-                color: 0x333333, 
-                metalness: 0.9, 
-                roughness: 0.2, 
-                emissive: 0xFF00FF, 
-                emissiveIntensity: 0.4,
-                wireframe: true
-            });
-            const block = new THREE.Mesh(geo, mat);
+            const block = new THREE.Mesh(geo, dataBlockMat); // ZMĚNA: Použit nový materiál
             block.position.set((lane - 1) * LANE_WIDTH, 1, 0);
             group.add(block);
             obstacleData.movement = { speed: 3, direction: direction };
@@ -74,12 +79,6 @@ export class GameObjectFactory {
         return obstacleData;
     }
 
-    /**
-     * Vytvoří specifický power-up.
-     * @param {string} powerupType - Typ power-upu ('speed', 'shield', 'life').
-     * @param {number} zPos - Pozice na ose Z.
-     * @returns {object} Objekt obsahující mesh a typ power-upu.
-     */
     createPowerup(powerupType, zPos) {
         const lane = Math.floor(Math.random() * 3);
         let mesh;
@@ -105,10 +104,6 @@ export class GameObjectFactory {
         return { mesh, type: finalType, powerupType };
     }
 
-    /**
-     * Vytvoří mesh pro štít.
-     * @returns {THREE.Mesh}
-     */
     createShield() {
         const geometry = new THREE.SphereGeometry(2, 32, 32);
         const material = new THREE.MeshBasicMaterial({ color: 0x00BFFF, transparent: true, opacity: 0.3, wireframe: true });

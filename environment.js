@@ -19,6 +19,25 @@ export class Environment {
 
         // Světelné prstence pro efekt rychlosti
         this.lightRings = this.createLightRings();
+
+        // ZMĚNA: Připravené textury a barvy pro zóny
+        this.zoneThemes = {
+            sewer: {
+                fogColor: 0x101510,
+                ambientColor: 0x104010,
+                ringColor: 0x33FF33,
+            },
+            subway: {
+                fogColor: 0x151510,
+                ambientColor: 0x404010,
+                ringColor: 0xFFD700,
+            },
+            datastream: {
+                fogColor: 0x101015,
+                ambientColor: 0x101040,
+                ringColor: 0x00BFFF,
+            }
+        };
     }
 
     /**
@@ -56,7 +75,6 @@ export class Environment {
             color: 0x222222,
         });
 
-        // Přidání mřížky na podlahu
         const gridTexture = this.createGridTexture();
         gridTexture.wrapS = THREE.RepeatWrapping;
         gridTexture.wrapT = THREE.RepeatWrapping;
@@ -64,7 +82,7 @@ export class Environment {
 
         const floorMaterial = floor.material;
         floorMaterial.uniforms.tDiffuse.value = gridTexture;
-        floorMaterial.uniforms.color.value.set(0x333333); // Tmavší barva podkladu
+        floorMaterial.uniforms.color.value.set(0x333333);
         
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = -1;
@@ -81,7 +99,7 @@ export class Environment {
         const vertices = [];
         for (let i = 0; i < 300; i++) {
             vertices.push(
-                (Math.random() - 0.5) * 20, // Širší rozptyl
+                (Math.random() - 0.5) * 20,
                 Math.random() * 10,
                 (Math.random() - 0.5) * 200
             );
@@ -102,13 +120,13 @@ export class Environment {
      */
     createLightRings() {
         const group = new THREE.Group();
-        const ringGeo = new THREE.RingGeometry(9.5, 9.8, 8, 1); // Osmiúhelníkové prstence
+        const ringGeo = new THREE.RingGeometry(9.5, 9.8, 8, 1);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0x00BFFF, side: THREE.DoubleSide, opacity: 0.7, transparent: true });
 
         for (let i = 0; i < 5; i++) {
-            const ring = new THREE.Mesh(ringGeo, ringMat);
+            const ring = new THREE.Mesh(ringGeo, ringMat.clone()); // Klonujeme materiál pro změnu barvy
             ring.rotation.x = Math.PI / 2;
-            ring.position.z = -i * 40; // Rozestup mezi prstenci
+            ring.position.z = -i * 40;
             group.add(ring);
         }
         return group;
@@ -124,11 +142,9 @@ export class Environment {
         canvas.height = 512;
         const ctx = canvas.getContext('2d');
         
-        // Tmavý podklad
         ctx.fillStyle = '#101015';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Jemná mřížka
         ctx.strokeStyle = '#202028';
         ctx.lineWidth = 1;
         for(let i = 0; i < canvas.width; i += 16) {
@@ -138,7 +154,6 @@ export class Environment {
             ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
         }
 
-        // Zářící linky
         ctx.strokeStyle = '#00BFFF';
         ctx.lineWidth = 4;
         ctx.globalAlpha = 0.5;
@@ -174,31 +189,37 @@ export class Environment {
         return new THREE.CanvasTexture(canvas);
     }
 
+    // ZMĚNA: Nová funkce pro nastavení vizuální zóny
+    setZone(zone, scene, ambientLight) {
+        const theme = this.zoneThemes[zone];
+        if (!theme) return;
+
+        scene.fog.color.setHex(theme.fogColor);
+        ambientLight.color.setHex(theme.ambientColor);
+        this.lightRings.children.forEach(ring => {
+            ring.material.color.setHex(theme.ringColor);
+        });
+        // Zde byste mohli měnit i texturu tunelu, pokud byste pro každou zónu vytvořili jinou
+    }
+
     /**
      * Aktualizuje animovatelné části prostředí.
      * @param {number} moveZ O kolik se scéna posunula v Z ose.
      * @param {THREE.Vector3} playerPosition Aktuální pozice hráče.
      */
     update(moveZ, playerPosition) {
-        // Animace textury tunelu
         this.tunnelTexture.offset.y -= moveZ * 0.01;
 
-        // Pohyb prachových částic pro paralax efekt
         this.dustParticles.position.z += moveZ * 0.5;
         if (this.dustParticles.position.z > playerPosition.z) {
             this.dustParticles.position.z -= 100;
         }
 
-        // Pohyb světelných prstenců
         this.lightRings.children.forEach(ring => {
-            // Posuneme prstenec k hráči
             ring.position.z += moveZ * 1.2 + 0.1; 
-            
-            // Pokud je prstenec za kamerou, přesuneme ho daleko dopředu
             if (ring.position.z > playerPosition.z + 20) {
-                ring.position.z -= 200; // 5 prstenců * 40 rozestup
+                ring.position.z -= 200;
             }
         });
     }
 }
-

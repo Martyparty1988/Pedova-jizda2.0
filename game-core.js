@@ -22,25 +22,39 @@ class GameCore {
         this.touchStart = null;
         this.menuAnimationFrame = null;
 
-        // ZMĚNA: Přidány proměnné pro detekci dvojitého stisku/swipu
         this.lastSwipeUpTime = 0;
         this.lastJumpKeyPressTime = 0;
-        this.doubleTapDelay = 300; // 300ms okno pro dvojitý stisk
+        this.doubleTapDelay = 300;
     }
 
     async init() {
-        this.ui.showLoading('Načítám 3D scénu...');
+        // ZMĚNA: Celá logika inicializace byla upravena pro nové integrované načítání
+        const menuLoadingText = this.ui.elements['menu-loading-text'];
+        const menuLoadingContainer = this.ui.elements['menu-loading-container'];
+        const playBtn = this.ui.elements['play-btn'];
+
         try {
+            // Hlavní menu je již viditelné, jen zobrazíme text načítání
+            menuLoadingText.textContent = 'Načítám 3D scénu...';
+            
             await this.threeD.init();
-            this.ui.showLoading('Inicializuji audio...');
+            
+            menuLoadingText.textContent = 'Inicializuji audio...';
             this.audio.init();
+
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
-            this.ui.showScreen('main-menu');
+
+            // Vše je načteno, skryjeme načítací prvky a aktivujeme tlačítko
+            menuLoadingContainer.style.display = 'none';
+            playBtn.disabled = false;
+            
+            // Spustíme animaci pozadí menu
             this.menuLoop();
         } catch (error) {
             console.error("Fatální chyba při inicializaci hry:", error);
-            this.ui.elements['webgl-fallback'].classList.add('active');
+            // V případě chyby skryjeme menu a zobrazíme chybovou hlášku
+            this.ui.showScreen('webgl-fallback');
         }
     }
 
@@ -75,12 +89,14 @@ class GameCore {
     }
 
     startGame() {
-        if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
+        if (this.menuAnimationFrame) {
+            cancelAnimationFrame(this.menuAnimationFrame);
+            this.menuAnimationFrame = null;
+        }
         
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
         this.gameState.isDoingTrick = false; 
-        // ZMĚNA: Přidán nový stav pro salto vpřed
         this.gameState.isDoingFrontFlip = false;
         this.logic.resetSkills();
         this.threeD.reset();
@@ -93,6 +109,7 @@ class GameCore {
     }
     
     menuLoop() {
+        if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame); // Pojistka
         this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
         const delta = this.threeD.clock.getDelta();
         this.threeD.updateMenuBackground(delta);
@@ -139,7 +156,7 @@ class GameCore {
             if (this.logic.consumeShield(this.gameState)) {
                 this.audio.playSound('shield_break');
                 this.threeD.triggerShieldBreakEffect();
-                this.threeD.gameObjects[index].mesh.visible = false;
+                if(this.threeD.gameObjects[index]) this.threeD.gameObjects[index].mesh.visible = false;
                 this.gameState.invincibilityTimer = 1000;
             } else {
                 const flash = document.getElementById('collision-flash');
@@ -179,20 +196,19 @@ class GameCore {
             if (!this.touchStart) return;
             const dx = event.changedTouches[0].clientX - this.touchStart.x;
             const dy = event.changedTouches[0].clientY - this.touchStart.y;
-            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) { // Swipe do strany
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
                 this.gameState.lane = Math.max(0, Math.min(2, this.gameState.lane + (dx > 0 ? 1 : -1)));
             } else if (Math.abs(dy) > 30) {
-                if (dy < 0) { // Swipe nahoru
-                    // ZMĚNA: Detekce dvojitého swipu
+                if (dy < 0) {
                     const now = Date.now();
                     if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
                         this.doSuperJump();
-                        this.lastSwipeUpTime = 0; // Reset, aby se zamezilo trojitému swipu
+                        this.lastSwipeUpTime = 0;
                     } else {
                         this.doJump();
                     }
                     this.lastSwipeUpTime = now;
-                } else { // Swipe dolů
+                } else {
                     this.doDash();
                 }
             }
@@ -203,11 +219,10 @@ class GameCore {
                 case 'ArrowRight': case 'KeyD': this.gameState.lane = Math.min(2, this.gameState.lane + 1); break;
                 case 'ArrowUp': case 'KeyW': case 'Space': 
                     event.preventDefault();
-                    // ZMĚNA: Detekce dvojitého stisku
                     const now = Date.now();
                     if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
                         this.doSuperJump();
-                        this.lastJumpKeyPressTime = 0; // Reset
+                        this.lastJumpKeyPressTime = 0;
                     } else {
                         this.doJump();
                     }
@@ -237,20 +252,18 @@ class GameCore {
         }
     }
 
-    // ZMĚNA: Nová funkce pro super skok
     doSuperJump() {
-        // Super skok lze provést pouze ze země
         if (this.logic.canJump(this.gameState) && this.logic.canSuperJump(this.gameState)) {
             this.logic.activateSkill('superJump');
             this.ui.updateSkillUI(this.logic.skills);
 
-            this.gameState.playerVelocityY = JUMP_FORCE * 1.5; // O 50% vyšší skok
-            this.gameState.jumpCount = 1; // Spotřebuje první skok
-            this.gameState.isDoingFrontFlip = true; // Spustí animaci salta
+            this.gameState.playerVelocityY = JUMP_FORCE * 1.5;
+            this.gameState.jumpCount = 1;
+            this.gameState.isDoingFrontFlip = true;
             
             this.gameState.runStats.jumps++;
-            this.audio.playSound('super_jump'); // Nový zvukový efekt
-            this.ui.showQuote('super_jump'); // Nová hláška
+            this.audio.playSound('super_jump');
+            this.ui.showQuote('super_jump');
         }
     }
 

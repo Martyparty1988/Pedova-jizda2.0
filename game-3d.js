@@ -16,9 +16,8 @@ class Game3D {
         this.onCollision = options.onCollision;
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        // ZMĚNA: Sledování aktuální zóny
         this.currentZone = 'sewer';
-        this.zoneLength = 2000; // Jak dlouho trvá jedna zóna
+        this.zoneLength = 2000;
     }
 
     async init() {
@@ -70,6 +69,7 @@ class Game3D {
         this.scene.add(this.ambientLight);
 
         this.scene.add(this.player.mesh);
+        this.player.mesh.visible = false; // ZMĚNA: Hráč je v menu neviditelný
         
         this.scene.add(this.environment.tunnel);
         this.scene.add(this.environment.floor);
@@ -89,13 +89,24 @@ class Game3D {
         this.gameObjects = [];
         this.lastSpawnZ = 0;
         this.player.mesh.position.set(0, 0, 0);
-        this.player.mesh.visible = true;
+        this.player.mesh.visible = true; // ZMĚNA: Hráč se zviditelní na startu hry
         this.camera.position.set(0, 4, 10);
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
-        // ZMĚNA: Reset zóny na začátku hry
         this.currentZone = 'sewer';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+    }
+    
+    // ZMĚNA: Nová funkce pro animaci pozadí v menu
+    updateMenuBackground(delta) {
+        // Pomalý pohyb kamery vpřed a do strany pro dynamický efekt
+        this.camera.position.z -= delta * 5;
+        this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
+        this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
+        this.camera.rotation.y = Math.sin(Date.now() * 0.0001) * 0.1;
+        
+        this.environment.update(delta * 5, this.camera.position);
+        this.composer.render();
     }
     
     update(gameState, targetX, delta) {
@@ -118,7 +129,6 @@ class Game3D {
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.mesh.position.z -= moveZ;
         
-        // ZMĚNA: Logika pro přepínání zón podle vzdálenosti
         const distance = Math.abs(this.player.mesh.position.z);
         const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
         const zones = ['sewer', 'subway', 'datastream'];
@@ -209,19 +219,20 @@ class Game3D {
         const zPos = this.player.mesh.position.z - 150;
         let newObject;
 
-        // ZMĚNA: Přidána šance na spawn života
-        if (rand < 0.70) { // 70% šance na překážku
+        if (rand < 0.70) {
             newObject = this.objectFactory.createObstacle(zPos, this.currentZone);
-        } else if (rand < 0.85) { // 15% šance na speed
+        } else if (rand < 0.85) {
             newObject = this.objectFactory.createPowerup('speed', zPos);
-        } else if (rand < 0.95) { // 10% šance na štít
+        } else if (rand < 0.95) {
             newObject = this.objectFactory.createPowerup('shield', zPos);
-        } else { // 5% šance na život
+        } else {
             newObject = this.objectFactory.createPowerup('life', zPos);
         }
         
-        this.scene.add(newObject.mesh);
-        this.gameObjects.push(newObject);
+        if (newObject.mesh) {
+            this.scene.add(newObject.mesh);
+            this.gameObjects.push(newObject);
+        }
     }
     
     checkCollisions(gameState) {
@@ -230,7 +241,7 @@ class Game3D {
 
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
-            if (!obj.mesh.visible || Math.abs(obj.mesh.position.z - this.player.mesh.position.z) > 4) continue;
+            if (!obj.mesh || !obj.mesh.visible || Math.abs(obj.mesh.position.z - this.player.mesh.position.z) > 4) continue;
             
             this.obstacleCollider.setFromObject(obj.mesh);
             if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
@@ -242,10 +253,19 @@ class Game3D {
     cleanupObjects(gameState) {
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
-            if (obj.mesh.position.z > this.camera.position.z + 10) {
+            if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
                 this.scene.remove(obj.mesh);
-                if (obj.mesh.geometry) obj.mesh.geometry.dispose();
-                if (obj.mesh.material) obj.mesh.material.dispose();
+                // Projít potomky a uvolnit jejich zdroje
+                obj.mesh.traverse(child => {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => mat.dispose());
+                        } else {
+                            child.material.dispose();
+                        }
+                    }
+                });
                 if (obj.type === 'obstacle') gameState.runStats.obstaclesDodged++;
                 this.gameObjects.splice(i, 1);
             }

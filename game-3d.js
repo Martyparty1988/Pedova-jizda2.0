@@ -10,7 +10,7 @@ class Game3D {
         this.canvas = options.canvas;
         this.onCollision = options.onCollision;
         this.gameObjects = [];
-        this.tunnelDetails = []; // Pro potrubí a světla
+        this.tunnelDetails = [];
         this.lastSpawnZ = 0;
     }
 
@@ -40,7 +40,7 @@ class Game3D {
     setupPostProcessing() {
         const composer = new EffectComposer(this.renderer);
         composer.addPass(new RenderPass(this.scene, this.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.8, 0.2);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.8, 0.1);
         composer.addPass(bloomPass);
 
         const customShader = {
@@ -55,7 +55,8 @@ class Game3D {
 
     setupWorld() {
         this.scene.fog = new THREE.Fog(0x101015, 15, 80);
-        this.scene.add(new THREE.AmbientLight(0x404040, 2.5));
+        this.ambientLight = new THREE.AmbientLight(0x404040, 2.5);
+        this.scene.add(this.ambientLight);
 
         this.player = this.createPlayer();
         this.scene.add(this.player);
@@ -69,82 +70,80 @@ class Game3D {
         this.keyLight = new THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
         this.scene.add(this.keyLight);
         this.scene.add(this.keyLight.target);
+
+        this.dustParticles = this.createDustParticles();
+        this.scene.add(this.dustParticles);
     }
     
     createPlayer() {
         const playerGroup = new THREE.Group();
         const core = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 8), new THREE.MeshPhongMaterial({color: 0xffffff, emissive: 0x00BFFF, emissiveIntensity: 3}));
+        
+        const wingLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 1), new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9, roughness: 0.5 }));
+        wingLeft.position.x = -0.7;
+        wingLeft.rotation.z = 0.2;
+        
+        const wingRight = wingLeft.clone();
+        wingRight.position.x = 0.7;
+        wingRight.rotation.z = -0.2;
+
         const board = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 2.2), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.95, roughness: 0.4, emissive: 0xaaaaaa, emissiveIntensity: 0.1 }));
         board.position.y = -0.1;
-        playerGroup.add(core, board);
+        playerGroup.add(core, board, wingLeft, wingRight);
         return playerGroup;
     }
 
     createTunnel() {
         const tubePath = new THREE.LineCurve3(new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,-200));
         const tubeGeo = new THREE.TubeGeometry(tubePath, 12, 8, 8, false);
-        const tubeTex = this.createProceduralTunnelTexture(); // Změna: Použití procedurální textury
+        const tubeTex = this.createProceduralTunnelTexture();
         tubeTex.wrapS = tubeTex.wrapT = THREE.RepeatWrapping;
         const tubeMat = new THREE.MeshStandardMaterial({ map: tubeTex, side: THREE.BackSide, roughness: 0.8, metalness: 0.2 });
         return new THREE.Mesh(tubeGeo, tubeMat);
     }
+    
+    createDustParticles() {
+        const geometry = new THREE.BufferGeometry();
+        const vertices = [];
+        for (let i = 0; i < 200; i++) {
+            vertices.push(
+                Math.random() * 20 - 10,
+                Math.random() * 10,
+                Math.random() * -200
+            );
+        }
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        const material = new THREE.PointsMaterial({ size: 0.05, color: 0x666666 });
+        return new THREE.Points(geometry, material);
+    }
+
 
     createProceduralTunnelTexture() {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 4096;
+        const canvas = document.createElement('canvas'); canvas.width = 1024; canvas.height = 4096;
         const ctx = canvas.getContext('2d');
-        
-        ctx.fillStyle = '#3a3a3a';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Šum
+        ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, 0, canvas.width, canvas.height);
         for (let i = 0; i < 40000; i++) {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * canvas.height;
-            const c = Math.floor(Math.random() * 25) + 45;
-            ctx.fillStyle = `rgb(${c},${c},${c})`;
-            ctx.fillRect(x, y, 3, 3);
+            const x = Math.random() * canvas.width; const y = Math.random() * canvas.height; const c = Math.floor(Math.random() * 25) + 45;
+            ctx.fillStyle = `rgb(${c},${c},${c})`; ctx.fillRect(x, y, 3, 3);
         }
-        
-        // Spáry
-        ctx.strokeStyle = '#282828';
-        ctx.lineWidth = 30;
+        ctx.strokeStyle = '#282828'; ctx.lineWidth = 30;
         for (let y = 0; y < canvas.height; y += 512) {
-            ctx.beginPath();
-            ctx.moveTo(0, y + (Math.random() - 0.5) * 20);
-            ctx.lineTo(canvas.width, y + (Math.random() - 0.5) * 20);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, y + (Math.random() - 0.5) * 20); ctx.lineTo(canvas.width, y + (Math.random() - 0.5) * 20); ctx.stroke();
         }
-        
-        // Špína a vlhkost
         ctx.fillStyle = 'rgba(10, 50, 10, 0.25)';
-        for(let i=0; i<15; i++) {
-            ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 200, 400);
-        }
-        
-        // Graffiti
-        ctx.fillStyle = '#aaa';
-        ctx.font = '60px Teko';
-        ctx.globalAlpha = 0.05;
+        for(let i=0; i<15; i++) { ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 200, 400); }
+        ctx.fillStyle = '#aaa'; ctx.font = '60px Teko'; ctx.globalAlpha = 0.05;
         ctx.fillText("PEDRO ŽIJE", Math.random() * (canvas.width - 200), Math.random() * canvas.height);
         ctx.fillText("KDE JE DALŠÍ?", Math.random() * (canvas.width - 200), Math.random() * canvas.height);
         ctx.globalAlpha = 1.0;
-        
         return new THREE.CanvasTexture(canvas);
     }
     
     reset() {
         [...this.gameObjects, ...this.tunnelDetails].forEach(o => this.scene.remove(o.mesh));
-        this.gameObjects = [];
-        this.tunnelDetails = [];
-        this.lastSpawnZ = 0;
+        this.gameObjects = []; this.tunnelDetails = []; this.lastSpawnZ = 0;
         this.player.position.set(0, -0.6, 0);
         this.camera.position.set(0, 4, 10);
-    }
-    
-    render() {
-        this.composer.render();
     }
     
     update(gameState, targetX, delta) {
@@ -155,15 +154,10 @@ class Game3D {
         const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
         this.player.position.z -= moveZ;
         
-        if (this.tunnel.material.map) {
-            this.tunnel.material.map.offset.y -= moveZ * 0.005;
-        }
+        if (this.tunnel.material.map) this.tunnel.material.map.offset.y -= moveZ * 0.005;
         
         this.lastSpawnZ += moveZ;
-        if (this.lastSpawnZ > (600 / gameState.speed)) {
-            this.spawnObject();
-            this.lastSpawnZ = 0;
-        }
+        if (this.lastSpawnZ > (600 / gameState.speed)) { this.spawnObject(); this.lastSpawnZ = 0; }
 
         this.checkCollisions(gameState);
         this.cleanupObjects(gameState);
@@ -175,13 +169,20 @@ class Game3D {
         this.keyLight.position.set(this.player.position.x, this.player.position.y + 5, this.player.position.z + 5);
         this.keyLight.target.position.set(this.player.position.x, this.player.position.y, this.player.position.z - 50);
         this.keyLight.target.updateMatrixWorld();
+
+        // Animate dust
+        this.dustParticles.position.z -= moveZ * 0.5;
+        if (this.dustParticles.position.z < -100) this.dustParticles.position.z += 100;
         
-        this.render();
+        // Dynamic light zones
+        const zone = Math.floor(Math.abs(this.player.position.z) / 200) % 3;
+        const colors = [0x404040, 0x401010, 0x104010];
+        this.ambientLight.color.setHex(colors[zone]);
+        
+        this.composer.render();
     }
 
-    spawnObject() {
-        (Math.random() > 0.25) ? this.spawnObstacle() : this.spawnPowerup();
-    }
+    spawnObject() { (Math.random() > 0.25) ? this.spawnObstacle() : this.spawnPowerup(); }
 
     spawnObstacle() {
         const type = Math.random(); let mesh;
@@ -228,20 +229,16 @@ class Game3D {
     }
     
     cleanupObjects(gameState) {
-        const cleanup = (arr) => {
-            for (let i = arr.length - 1; i >= 0; i--) {
-                const obj = arr[i];
-                if (obj.mesh.position.z > this.camera.position.z + 10) {
-                    this.scene.remove(obj.mesh);
-                    if (obj.mesh.geometry) obj.mesh.geometry.dispose();
-                    if (obj.mesh.material) obj.mesh.material.dispose();
-                    if (obj.type === 'obstacle') gameState.runStats.obstaclesDodged++;
-                    arr.splice(i, 1);
-                }
+        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
+            const obj = this.gameObjects[i];
+            if (obj.mesh.position.z > this.camera.position.z + 10) {
+                this.scene.remove(obj.mesh);
+                if (obj.mesh.geometry) obj.mesh.geometry.dispose();
+                if (obj.mesh.material) obj.mesh.material.dispose();
+                if (obj.type === 'obstacle') gameState.runStats.obstaclesDodged++;
+                this.gameObjects.splice(i, 1);
             }
-        };
-        cleanup(this.gameObjects);
-        cleanup(this.tunnelDetails);
+        }
     }
 
     onWindowResize() {
@@ -254,3 +251,4 @@ class Game3D {
 }
 
 export { Game3D };
+

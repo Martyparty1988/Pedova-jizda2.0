@@ -1,172 +1,247 @@
-class GameLogic {
+import { GameUI } from './game-ui.js';
+import { Game3D } from './game-3d.js';
+import { GameLogic } from './game-logic.js';
+import { GameAudio } from './game-audio.js';
+
+const GRAVITY = -30;
+const JUMP_FORCE = 10;
+const LANE_WIDTH = 4;
+
+class GameCore {
     constructor() {
-        // ZMĚNA: Přidána nová schopnost 'superJump'
-        this.skills = {
-            doubleJump: { unlocked: true, cooldown: 0, duration: 2000 },
-            dash: { unlocked: true, cooldown: 0, duration: 5000 },
-            superJump: { unlocked: true, cooldown: 0, duration: 3000 }
+        this.ui = new GameUI();
+        this.logic = new GameLogic();
+        this.audio = new GameAudio();
+        this.threeD = new Game3D({
+            canvas: this.ui.elements['game-canvas'],
+            onCollision: (type, index) => this.handleCollision(type, index)
+        });
+
+        this.gameState = null;
+        this.animationFrame = null;
+        this.touchStart = null;
+        this.menuAnimationFrame = null;
+
+        this.lastSwipeUpTime = 0;
+        this.lastJumpKeyPressTime = 0;
+        this.doubleTapDelay = 300;
+    }
+
+    async init() {
+        const menuLoadingText = this.ui.elements['menu-loading-text'];
+        const menuLoadingContainer = this.ui.elements['menu-loading-container'];
+        const playBtn = this.ui.elements['play-btn'];
+
+        try {
+            menuLoadingText.textContent = 'Načítám 3D scénu...';
+            await this.threeD.init();
+            menuLoadingText.textContent = 'Inicializuji audio...';
+            this.audio.init();
+            this.setupEventListeners();
+            this.logic.loadStats(this.ui.elements);
+            menuLoadingContainer.style.display = 'none';
+            playBtn.disabled = false;
+            this.menuLoop();
+        } catch (error) {
+            console.error("Fatální chyba při inicializaci hry:", error);
+            this.ui.showScreen('webgl-fallback');
+        }
+    }
+
+    setupEventListeners() {
+        const addListener = (id, event, handler) => {
+            const element = this.ui.elements[id];
+            if (element) element.addEventListener(event, handler);
         };
-    }
+        addListener('play-btn', 'click', () => this.startGame());
+        addListener('restart-btn', 'click', () => this.startGame());
+        addListener('menu-btn', 'click', () => {
+            this.ui.showScreen('main-menu');
+            this.threeD.player.mesh.visible = false;
+            this.menuLoop();
+        });
+        addListener('pause-btn', 'click', () => this.togglePause());
+        addListener('analyze-run-btn', 'click', () => this.ui.analyzeRun());
 
-    getInitialGameState() {
-        return {
-            isPlaying: true,
-            isPaused: false,
-            isDashing: false,
-            score: 0,
-            speed: 8,
-            baseSpeed: 8,
-            maxSpeed: 30,
-            startTime: Date.now(),
-            playerY: -0.6,
-            playerVelocityY: 0,
-            jumpCount: 0,
-            lane: 1,
-            lives: 3,
-            maxLives: 5,
-            invincibilityTimer: 0,
-            hasShield: false,
-            runStats: {
-                jumps: 0,
-                dashes: 0,
-                powerups: 0,
-                obstaclesDodged: 0
-            }
-        };
-    }
+        window.addEventListener('resize', () => this.threeD.onWindowResize());
+        window.addEventListener('keydown', (e) => this.handleInput('keydown', e));
 
-    resetSkills() {
-        this.skills.doubleJump.cooldown = 0;
-        this.skills.dash.cooldown = 0;
-        this.skills.superJump.cooldown = 0; // ZMĚNA: Reset cooldownu i pro super skok
-    }
-
-    updateSkills(delta, onUpdate) {
-        let needsUpdate = false;
-        if (this.currentGameState && this.currentGameState.invincibilityTimer > 0) {
-            this.currentGameState.invincibilityTimer -= delta * 1000;
-        }
-
-        for (const skill of Object.values(this.skills)) {
-            if (skill.cooldown > 0) {
-                skill.cooldown -= delta * 1000;
-                if (skill.cooldown <= 0) {
-                    skill.cooldown = 0;
-                    needsUpdate = true;
-                }
-            }
-        }
-        if (needsUpdate && onUpdate) {
-            onUpdate();
-        }
-    }
-    
-    activateSkill(skillName) {
-        if(this.skills[skillName]) {
-            this.skills[skillName].cooldown = this.skills[skillName].duration;
+        const canvas = this.ui.elements['game-canvas'];
+        if (canvas) {
+            canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
+            canvas.addEventListener('touchend', (e) => this.handleInput('touchend', e), { passive: false });
         }
     }
 
-    canJump(gameState) {
-        // Nelze skočit, pokud se provádí salto vpřed
-        return gameState.jumpCount < 1 && gameState.playerY <= -0.6 && !gameState.isDoingFrontFlip;
-    }
-
-    canDoubleJump(gameState) {
-        return gameState.jumpCount < 2 && this.skills.doubleJump.cooldown <= 0;
-    }
-
-    // ZMĚNA: Nová funkce pro ověření, zda lze provést super skok
-    canSuperJump(gameState) {
-        return this.skills.superJump.cooldown <= 0;
-    }
-
-    canDash(gameState) {
-        return !gameState.isDashing && this.skills.dash.cooldown <= 0;
-    }
-
-    updateScore(gameState, delta) {
-        this.currentGameState = gameState;
-        gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 2500);
-        gameState.score += Math.floor(gameState.speed * delta * 10);
-    }
-
-    updatePlayerVerticalPosition(gameState, delta, gravity) {
-        if (gameState.playerY > -0.6 || gameState.playerVelocityY !== 0) {
-            gameState.playerVelocityY += gravity * delta;
-            gameState.playerY += gameState.playerVelocityY * delta;
-            if (gameState.playerY <= -0.6) {
-                gameState.playerY = -0.6;
-                gameState.playerVelocityY = 0;
-                gameState.jumpCount = 0;
-            }
-        }
-    }
-
-    collectPowerup(gameState, index, gameObjects) {
-        const obj = gameObjects[index];
-        if (!obj || !obj.mesh.visible) return null;
-
-        obj.mesh.visible = false;
-        gameState.runStats.powerups++;
-        
-        const powerupType = obj.powerupType;
-
-        if (powerupType === 'shield') {
-            gameState.hasShield = true;
-        } else if (powerupType === 'life') {
-            if (gameState.lives < gameState.maxLives) {
-                gameState.lives++;
-            }
-        } else { // 'speed' je default
-            gameState.score += 500;
-            gameState.baseSpeed += 1;
-            setTimeout(() => gameState.baseSpeed -= 1, 5000);
+    startGame() {
+        if (this.menuAnimationFrame) {
+            cancelAnimationFrame(this.menuAnimationFrame);
+            this.menuAnimationFrame = null;
         }
         
-        setTimeout(() => {
-            const realIndex = gameObjects.indexOf(obj);
-            if (realIndex > -1) {
-                 gameObjects.splice(realIndex, 1);
-            }
-        }, 100);
+        this.audio.resumeContext();
+        this.gameState = this.logic.getInitialGameState();
+        this.logic.resetSkills();
+        this.threeD.reset();
+        this.ui.showScreen('game-screen');
+        this.ui.updateSkillUI(this.logic.skills);
+        this.ui.updateLives(this.gameState.lives);
+        this.ui.updateCollectibleCount(this.gameState.runStats.collectibles);
         
-        return powerupType;
+        if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
+        this.gameLoop();
     }
     
-    consumeShield(gameState) {
-        if (gameState.hasShield) {
-            gameState.hasShield = false;
-            return true;
+    menuLoop() {
+        if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
+        this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
+        const delta = this.threeD.clock.getDelta();
+        this.threeD.updateMenuBackground(delta);
+    }
+    
+    gameLoop() {
+        if (!this.gameState || !this.gameState.isPlaying) return;
+        this.animationFrame = requestAnimationFrame(() => this.gameLoop());
+        if (this.gameState.isPaused) return;
+        const delta = this.threeD.clock.getDelta();
+        this.update(delta);
+    }
+
+    update(delta) {
+        this.logic.updateScore(this.gameState, delta);
+        this.ui.updateScore(this.gameState.score);
+        this.logic.updatePlayerVerticalPosition(this.gameState, delta, GRAVITY);
+        this.logic.updateSkills(delta, () => this.ui.updateSkillUI(this.logic.skills));
+        const targetX = (this.gameState.lane - 1) * LANE_WIDTH;
+        this.threeD.update(this.gameState, targetX, delta);
+    }
+
+    handleCollision(type, index) {
+        if (type.startsWith('powerup')) {
+            const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
+            if (powerupType === 'life' || powerupType === 'shield') {
+                this.ui.updateLives(this.gameState.lives);
+                this.audio.playSound('powerup_shield');
+            } else {
+                this.audio.playSound('powerup');
+                this.ui.triggerScoreGlow();
+            }
+            this.ui.showQuote('powerup');
+        } else if (type === 'collectible') {
+            this.logic.collectCollectible(this.gameState, index, this.threeD.gameObjects);
+            this.audio.playSound('collectible');
+            this.ui.updateCollectibleCount(this.gameState.runStats.collectibles);
+            this.ui.triggerScoreGlow();
+        } else if (type === 'obstacle') {
+            if (this.gameState.invincibilityTimer > 0) return;
+            if (this.logic.consumeShield(this.gameState)) {
+                this.audio.playSound('shield_break');
+                this.threeD.triggerShieldBreakEffect();
+                if(this.threeD.gameObjects[index]) this.threeD.gameObjects[index].mesh.visible = false;
+                this.gameState.invincibilityTimer = 1000;
+            } else {
+                const flash = document.getElementById('collision-flash');
+                flash.classList.add('flash');
+                setTimeout(() => flash.classList.remove('flash'), 500);
+                this.audio.playSound('collision');
+                const isGameOver = this.logic.handlePlayerHit(this.gameState);
+                this.ui.updateLives(this.gameState.lives);
+                if (isGameOver) this.gameOver();
+            }
         }
-        return false;
     }
 
-    handlePlayerHit(gameState) {
-        gameState.lives--;
-        gameState.invincibilityTimer = 2000;
-
-        return gameState.lives <= 0;
-    }
-
-    getFinalStats(gameState) {
-        const stats = { 
-            score: gameState.score, 
-            time: ((Date.now() - gameState.startTime) / 1000).toFixed(1), 
-            ...gameState.runStats 
-        };
-        const best = localStorage.getItem('fp3d_bestScore') || 0;
-        stats.bestScore = Math.max(best, stats.score);
-        return stats;
-    }
-
-    saveStats(finalStats) {
-        localStorage.setItem('fp3d_bestScore', finalStats.bestScore);
+    gameOver() {
+        if (!this.gameState.isPlaying) return;
+        this.gameState.isPlaying = false;
+        this.ui.showQuote('gameover');
+        const finalStats = this.logic.getFinalStats(this.gameState);
+        this.logic.saveStats(finalStats);
+        this.ui.showGameOver(finalStats);
     }
     
-    loadStats(elements) {
-        elements['best-score'].textContent = localStorage.getItem('fp3d_bestScore') || 0;
+    handleInput(type, event) {
+        if (!this.gameState || !this.gameState.isPlaying || this.gameState.isPaused) return;
+
+        if (type === 'touchstart') {
+            event.preventDefault();
+            this.touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+        } else if (type === 'touchend') {
+            event.preventDefault();
+            if (!this.touchStart) return;
+            const dx = event.changedTouches[0].clientX - this.touchStart.x;
+            const dy = event.changedTouches[0].clientY - this.touchStart.y;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
+                this.gameState.lane = Math.max(0, Math.min(2, this.gameState.lane + (dx > 0 ? 1 : -1)));
+            } else if (Math.abs(dy) > 30) {
+                if (dy < 0) {
+                    const now = Date.now();
+                    if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
+                        this.doSuperJump();
+                        this.lastSwipeUpTime = 0;
+                    } else this.doJump();
+                    this.lastSwipeUpTime = now;
+                } else this.doDash();
+            }
+            this.touchStart = null;
+        } else if (type === 'keydown') {
+            switch (event.code) {
+                case 'ArrowLeft': case 'KeyA': this.gameState.lane = Math.max(0, this.gameState.lane - 1); break;
+                case 'ArrowRight': case 'KeyD': this.gameState.lane = Math.min(2, this.gameState.lane + 1); break;
+                case 'ArrowUp': case 'KeyW': case 'Space': 
+                    event.preventDefault();
+                    const now = Date.now();
+                    if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
+                        this.doSuperJump();
+                        this.lastJumpKeyPressTime = 0;
+                    } else this.doJump();
+                    this.lastJumpKeyPressTime = now;
+                    break;
+                case 'ArrowDown': case 'KeyS': event.preventDefault(); this.doDash(); break;
+            }
+        }
+    }
+
+    doJump() {
+        if (this.logic.canJump(this.gameState)) {
+            this.gameState.playerVelocityY = JUMP_FORCE;
+            this.gameState.jumpCount = 1;
+            this.gameState.runStats.jumps++;
+            this.audio.playSound('jump');
+            this.ui.showQuote('jump');
+        }
+    }
+
+    doSuperJump() {
+        if (this.logic.canJump(this.gameState) && this.logic.canSuperJump(this.gameState)) {
+            this.logic.activateSkill('superJump');
+            this.ui.updateSkillUI(this.logic.skills);
+            this.gameState.playerVelocityY = JUMP_FORCE * 1.5;
+            this.gameState.jumpCount = 1;
+            this.gameState.isDoingSuperJump = true;
+            this.gameState.runStats.jumps++;
+            this.audio.playSound('super_jump');
+            this.ui.showQuote('super_jump');
+        }
+    }
+
+    doDash() {
+        if (this.logic.canDash(this.gameState)) {
+            this.gameState.isDashing = true;
+            this.logic.activateSkill('dash');
+            this.ui.updateSkillUI(this.logic.skills);
+            this.gameState.runStats.dashes++;
+            this.audio.playSound('dash');
+            this.ui.showQuote('boost');
+            setTimeout(() => this.gameState.isDashing = false, 300);
+        }
+    }
+
+    togglePause() {
+        if (!this.gameState || !this.gameState.isPlaying) return;
+        this.gameState.isPaused = !this.gameState.isPaused;
+        this.ui.togglePause(this.gameState.isPaused);
     }
 }
 
-export { GameLogic };
+export { GameCore };

@@ -47,7 +47,7 @@ class GameCore {
             if (element) {
                 element.addEventListener(event, handler);
             } else {
-                console.error(`Chyba: Element s ID '${id}' nebyl nalezen a nelze na něj navázat event listener.`);
+                console.warn(`Element s ID '${id}' nebyl nalezen.`);
             }
         };
 
@@ -64,23 +64,28 @@ class GameCore {
         if (canvas) {
             canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
             canvas.addEventListener('touchend', (e) => this.handleInput('touchend', e), { passive: false });
-        } else {
-            console.error("Chyba: Element canvas s ID 'game-canvas' nebyl nalezen.");
         }
     }
 
+    /**
+     * Spustí novou hru.
+     */
     startGame() {
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
         this.logic.resetSkills();
         this.threeD.reset();
+        // OPRAVA: Nahrazeno volání neexistující funkce `prepareForGame`
         this.ui.showScreen('game-screen');
         this.ui.updateSkillUI(this.logic.skills);
-
+        
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
     }
-
+    
+    /**
+     * Hlavní herní smyčka.
+     */
     gameLoop() {
         if (!this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
@@ -90,6 +95,9 @@ class GameCore {
         this.update(delta);
     }
 
+    /**
+     * Aktualizuje stav hry v každém snímku.
+     */
     update(delta) {
         this.logic.updateScore(this.gameState, delta);
         this.ui.updateScore(this.gameState.score);
@@ -100,6 +108,9 @@ class GameCore {
         this.threeD.update(this.gameState, targetX, delta);
     }
 
+    /**
+     * Zpracovává kolize detekované v 3D modulu.
+     */
     handleCollision(type, index) {
         if (type === 'obstacle') {
             this.gameOver();
@@ -107,23 +118,31 @@ class GameCore {
             this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
             this.audio.playSound('powerup');
             this.ui.showQuote('powerup');
+            // OPRAVA: Přejmenováno z glowScore na triggerScoreGlow
             this.ui.triggerScoreGlow();
             this.audio.vibrate(50);
         }
     }
 
+    /**
+     * Ukončí hru a zobrazí statistiky.
+     */
     gameOver() {
         if (!this.gameState.isPlaying) return;
         this.audio.vibrate([100, 50, 100]);
         this.gameState.isPlaying = false;
         this.audio.playSound('collision');
         this.ui.showQuote('collision');
-
+        
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
+        // OPRAVA: Přejmenováno z showGameOverScreen na showGameOver
         this.ui.showGameOver(finalStats);
     }
-
+    
+    /**
+     * Zpracovává vstupy od hráče (klávesnice, dotyk).
+     */
     handleInput(type, event) {
         if (!this.gameState || !this.gameState.isPlaying || this.gameState.isPaused) return;
 
@@ -151,6 +170,9 @@ class GameCore {
         }
     }
 
+    /**
+     * Provede skok nebo dvojskok.
+     */
     doJump() {
         if (this.logic.canJump(this.gameState)) {
             this.gameState.playerVelocityY = JUMP_FORCE;
@@ -169,6 +191,9 @@ class GameCore {
         }
     }
 
+    /**
+     * Provede rychlý pohyb vpřed (dash).
+     */
     doDash() {
         if (this.logic.canDash(this.gameState)) {
             this.audio.vibrate(75);
@@ -182,9 +207,13 @@ class GameCore {
         }
     }
 
+    /**
+     * Přepne stav pauzy.
+     */
     togglePause() {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.gameState.isPaused = !this.gameState.isPaused;
+        // OPRAVA: Přejmenováno z togglePauseButton na togglePause
         this.ui.togglePause(this.gameState.isPaused);
     }
 }

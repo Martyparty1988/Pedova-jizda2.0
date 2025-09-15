@@ -1,133 +1,253 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
-import { Game3D } from './game-3d.js';
-import { GameUI } from './game-ui.js';
-import { GameLogic } from './game-logic.js';
-import { GameAudio } from './game-audio.js';
+import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
+import { Player } from './player.js';
+import { Environment } from './environment.js';
+import { GameObjectFactory } from './gameObjectFactory.js';
 
-export class GameCore {
-    constructor() {
-        this.isGameRunning = false;
-        this.totalTime = 0;
-        // OPRAVA: Vytvoření instance hodin pro měření času
-        this.clock = new THREE.Clock();
-        
-        this.lastSwipe = 0;
-        this.swipeCooldown = 200; // ms
-        this.lastSuperSwipe = 0;
-        this.superSwipeCooldown = 500; // ms
+const LANE_WIDTH = 4;
+
+export class Game3D {
+    constructor(options) {
+        this.canvas = options.canvas;
+        this.onCollision = options.onCollision;
+        this.gameObjects = [];
+        this.lastSpawnZ = 0;
+        this.currentZone = 'aurora';
+        this.zoneLength = 2000;
     }
 
     async init() {
-        try {
-            this.ui = new GameUI();
-            this.logic = new GameLogic();
-            this.audio = new GameAudio();
-            await this.audio.loadSounds();
-
-            this.game3d = new Game3D(this);
-            this.game3d.init();
-            
-            this.setupEventListeners();
-            
-            this.menuLoop();
-            
-        } catch (error) {
-            console.error("Fatální chyba při inicializaci hry:", error);
-            this.ui.showError("Nepodařilo se spustit hru. Zkuste obnovit stránku.");
-        }
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+        this.camera.position.set(0, 4, 10);
+        this.clock = new THREE.Clock();
+        this.playerCollider = new THREE.Box3();
+        this.obstacleCollider = new THREE.Box3();
+        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setClearColor(0x000000, 0);
+        this.setupPostProcessing();
+        this.setupWorld();
     }
     
-    setupEventListeners() {
-        this.ui.startButton.addEventListener('click', () => this.startGame());
-        this.ui.restartButton.addEventListener('click', () => this.startGame());
+    setupPostProcessing() {
+        this.composer = new EffectComposer(this.renderer);
+        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.6, 0.1);
+        this.composer.addPass(bloomPass);
+    }
 
-        let touchstartX = 0;
-        let touchstartY = 0;
-        let touchendX = 0;
-        let touchendY = 0;
-
-        document.addEventListener('touchstart', e => {
-            touchstartX = e.changedTouches[0].screenX;
-            touchstartY = e.changedTouches[0].screenY;
-        }, { passive: false });
-
-        document.addEventListener('touchend', e => {
-            touchendX = e.changedTouches[0].screenX;
-            touchendY = e.changedTouches[0].screenY;
-            this.handleSwipe();
-        });
+    setupWorld() {
+        this.player = new Player();
+        this.environment = new Environment();
+        this.objectFactory = new GameObjectFactory();
         
-        const handleSwipe = () => {
-             const deltaX = touchendX - touchstartX;
-             const deltaY = touchendY - touchstartY;
-             const now = Date.now();
+        this.scene.fog = new THREE.Fog(0x0D0E1B, 15, 80);
+        this.ambientLight = new THREE.AmbientLight(0x10122B, 2.5);
+        this.scene.add(this.ambientLight);
 
-            if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 30) {
-                if (deltaY < 0 && now - this.lastSwipe > this.swipeCooldown) { // Swipe up
-                    if(now - this.lastSuperSwipe < this.superSwipeCooldown){
-                        this.logic.requestSuperJump = true;
-                    } else {
-                        this.logic.requestJump = true;
-                    }
-                    this.lastSuperSwipe = now;
-                    this.lastSwipe = now;
+        this.scene.add(this.player.mesh);
+        this.player.mesh.visible = false;
+        
+        this.scene.add(this.environment.tunnel, this.environment.floor, this.environment.dustParticles, this.environment.lightRings);
+        
+        this.shield = this.objectFactory.createShield();
+        this.player.mesh.add(this.shield);
+
+        this.keyLight = new THREE.SpotLight(0xffffff, 2.0, 100, Math.PI / 3.5, 0.8);
+        this.scene.add(this.keyLight, this.keyLight.target);
+    }
+    
+    reset() {
+        this.gameObjects.forEach(o => this.scene.remove(o.mesh));
+        this.gameObjects = [];
+        this.lastSpawnZ = 0;
+        this.player.mesh.position.set(0, 0, 0);
+        this.player.mesh.visible = true;
+        this.camera.position.set(0, 4, 10);
+        this.player.mesh.rotation.set(0, 0, 0);
+        this.player.trickRotation = 0;
+        this.player.frontFlipRotation = 0;
+        this.currentZone = 'aurora';
+        this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+    }
+    
+    updateMenuBackground(delta) {
+        this.camera.position.z -= delta * 5;
+        this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
+        this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
+        this.camera.lookAt(this.scene.position);
+        this.environment.update(delta * 5, this.camera.position);
+        this.composer.render();
+    }
+    
+    update(gameState, targetX, delta) {
+        this.player.mesh.position.y = gameState.playerY;
+        this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
+        if (!gameState.isDoingFrontFlip) {
+            this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
+        }
+        this.player.update();
+
+        if (gameState.isDoingTrick) {
+            this.player.trickRotation += 15 * delta;
+            this.player.mesh.rotation.z = this.player.trickRotation;
+            if (this.player.trickRotation >= Math.PI * 2) {
+                this.player.trickRotation = 0;
+                this.player.mesh.rotation.z = 0;
+                gameState.isDoingTrick = false;
+            }
+        }
+        
+        if (gameState.isDoingFrontFlip) {
+            this.player.frontFlipRotation += 10 * delta;
+            this.player.mesh.rotation.x = this.player.frontFlipRotation;
+            if (this.player.frontFlipRotation >= Math.PI * 2 && gameState.playerY <= -0.6) {
+                this.player.frontFlipRotation = 0;
+                this.player.mesh.rotation.x = 0;
+                gameState.isDoingFrontFlip = false;
+            }
+        }
+
+        const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
+        this.player.mesh.position.z -= moveZ;
+        
+        const distance = Math.abs(this.player.mesh.position.z);
+        const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
+        const zones = ['aurora', 'sunset', 'matrix'];
+        const newZone = zones[zoneIndex];
+
+        if (newZone !== this.currentZone) {
+            this.currentZone = newZone;
+            this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+        }
+
+        this.lastSpawnZ += moveZ;
+        if (this.lastSpawnZ > (600 / gameState.speed)) {
+            this.spawnObject();
+            this.lastSpawnZ = 0;
+        }
+        
+        if (gameState.invincibilityTimer > 0) {
+            this.player.mesh.visible = Math.floor(Date.now() / 100) % 2 === 0;
+        } else {
+            this.player.mesh.visible = true;
+        }
+        this.shield.visible = gameState.hasShield;
+        if (this.shield.visible) {
+            this.shield.rotation.y += delta;
+            this.shield.rotation.x += delta * 0.5;
+        }
+
+        if (gameState.isDashing) this.player.activateBoost();
+        else this.player.deactivateBoost();
+
+        this.environment.update(moveZ, this.player.mesh.position);
+        this.updateGameObjects(delta);
+        this.checkCollisions(gameState);
+        this.cleanupObjects(gameState);
+        this.updateCameraAndLights();
+        
+        this.composer.render();
+    }
+    
+    updateGameObjects(delta) {
+        for (const obj of this.gameObjects) {
+            if (obj.movement) {
+                obj.mesh.position.x += obj.movement.speed * delta * obj.movement.direction;
+                if (Math.abs(obj.mesh.position.x) > LANE_WIDTH) {
+                    obj.movement.direction *= -1;
                 }
             }
-        };
-
-        document.addEventListener('keydown', (event) => {
-            if (!this.isGameRunning) return;
-            if (event.code === 'Space') {
-                this.logic.requestJump = true;
-            }
-        });
-    }
-
-    startGame() {
-        this.isGameRunning = true;
-        this.logic.reset();
-        this.ui.showHUD();
-        this.ui.updateLives(this.logic.lives);
-        this.ui.updateScore(this.logic.score);
-        this.ui.updateCollectibles(this.logic.collectibles);
-        this.audio.play('start');
-        
-        this.game3d.startIntroAnimation(() => {
-            this.gameLoop();
-        });
-    }
-
-    gameOver() {
-        this.isGameRunning = false;
-        this.ui.showGameOver(this.logic.score);
-        this.audio.play('gameOver');
-    }
-    
-    menuLoop() {
-        if (this.isGameRunning) return;
-        requestAnimationFrame(() => this.menuLoop());
-        const delta = this.clock.getDelta();
-        this.totalTime += delta;
-        // Zde může být animace pozadí v menu
-        this.game3d.renderer.render(this.game3d.scene, this.game3d.camera);
-    }
-
-    gameLoop() {
-        if (!this.isGameRunning) return;
-        
-        const delta = this.clock.getDelta();
-        this.totalTime += delta;
-
-        this.logic.update(delta);
-        this.game3d.update(delta, this.logic);
-        this.ui.updateScore(this.logic.score);
-
-        if (this.logic.isGameOver) {
-            this.gameOver();
-        } else {
-            requestAnimationFrame(() => this.gameLoop());
         }
     }
+
+    updateCameraAndLights() {
+        const playerPos = this.player.mesh.position;
+        this.camera.position.x += (playerPos.x * 0.5 - this.camera.position.x) * 0.1;
+        this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
+        this.camera.position.z = playerPos.z + 10;
+        
+        this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
+        this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
+        this.keyLight.target.updateMatrixWorld();
+    }
+
+    triggerShieldBreakEffect() {
+        if (!this.shield) return;
+        let scale = 1;
+        const animate = () => {
+            scale += 0.5;
+            this.shield.scale.set(scale, scale, scale);
+            this.shield.material.opacity -= 0.1;
+            if (this.shield.material.opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                this.shield.scale.set(1, 1, 1);
+                this.shield.material.opacity = 0.3;
+            }
+        };
+        animate();
+    }
+
+    spawnObject() { 
+        const rand = Math.random();
+        const zPos = this.player.mesh.position.z - 150;
+        let newObject;
+
+        if (rand < 0.70) newObject = this.objectFactory.createObstacle(zPos);
+        else if (rand < 0.85) newObject = this.objectFactory.createPowerup('speed', zPos);
+        else if (rand < 0.95) newObject = this.objectFactory.createPowerup('shield', zPos);
+        else newObject = this.objectFactory.createPowerup('life', zPos);
+        
+        if (newObject.mesh) {
+            this.scene.add(newObject.mesh);
+            this.gameObjects.push(newObject);
+        }
+    }
+    
+    checkCollisions(gameState) {
+        if (!this.player.mesh.visible) return;
+        this.playerCollider.setFromObject(this.player.mesh);
+
+        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
+            const obj = this.gameObjects[i];
+            if (!obj.mesh || !obj.mesh.visible) continue;
+            
+            this.obstacleCollider.setFromObject(obj.mesh);
+            if (this.playerCollider.intersectsBox(this.obstacleCollider)) {
+                this.onCollision(obj.type, i);
+                break;
+            }
+        }
+    }
+    
+    cleanupObjects() {
+        for (let i = this.gameObjects.length - 1; i >= 0; i--) {
+            const obj = this.gameObjects[i];
+            if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
+                this.scene.remove(obj.mesh);
+                obj.mesh.traverse(child => {
+                    if (child.isMesh) {
+                        child.geometry.dispose();
+                        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                        else child.material.dispose();
+                    }
+                });
+                this.gameObjects.splice(i, 1);
+            }
+        }
+    }
+
+    onWindowResize() {
+        if (!this.camera || !this.renderer) return;
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.composer.setSize(window.innerWidth, window.innerHeight);
+    }
 }
-
-

@@ -37,7 +37,7 @@ export class Game3D {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
         
-        // ZMĚNA: Výrazně zjemněný Bloom efekt pro ostrý obraz
+        // ZMĚNA #1: Výrazně zjemněný Bloom efekt pro ostrý obraz
         // parametry: (rozlišení, síla, poloměr, práh)
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.2, 0.95);
         this.composer.addPass(bloomPass);
@@ -48,10 +48,10 @@ export class Game3D {
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
-        // ZMĚNA: Mlha začíná dál
+        // ZMĚNA #2: Mlha začíná dál od kamery
         this.scene.fog = new THREE.Fog(0x0D0E1B, 50, 130);
         
-        // ZMĚNA: Mírně silnější ambientní světlo pro lepší viditelnost tunelu
+        // ZMĚNA #3: Mírně silnější a sytější ambientní světlo pro lepší viditelnost
         this.ambientLight = new THREE.AmbientLight(0x50609F, 3.8);
         this.scene.add(this.ambientLight);
 

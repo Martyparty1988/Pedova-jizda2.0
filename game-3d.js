@@ -36,8 +36,9 @@ export class Game3D {
     setupPostProcessing() {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
-        // ZMĚNA: Upraveny parametry Bloom efektu pro ostřejší a čistší vzhled
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.6, 0.85);
+        // ZMĚNA: Výrazně upraveny parametry Bloom efektu pro ostřejší záři a méně rozmazání.
+        // strength, radius, threshold
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.9, 0.4, 0.9);
         this.composer.addPass(bloomPass);
     }
 
@@ -46,8 +47,11 @@ export class Game3D {
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
-        this.scene.fog = new THREE.Fog(0x0D0E1B, 15, 80);
-        this.ambientLight = new THREE.AmbientLight(0x10122B, 2.5);
+        // ZMĚNA: Mlha nyní začíná mnohem dál, aby byla scéna jasnější.
+        this.scene.fog = new THREE.Fog(0x0D0E1B, 40, 120);
+        
+        // ZMĚNA: Ambientní světlo je silnější a má sytější barvu, aby osvětlilo tunel.
+        this.ambientLight = new THREE.AmbientLight(0x40508F, 3.5);
         this.scene.add(this.ambientLight);
 
         this.scene.add(this.player.mesh);
@@ -77,13 +81,11 @@ export class Game3D {
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
     
-    // ZMĚNA: Přepracovaná funkce pro plynulejší pohyb a přidání osvětlení
     updateMenuBackground(delta) {
         this.camera.position.z -= delta * 2;
         this.camera.rotation.y += delta * 0.05;
         this.camera.position.y = 2 + Math.sin(Date.now() * 0.0002) * 2;
         
-        // ZMĚNA: Hlavní světlo nyní sleduje kameru i v menu
         const camPos = this.camera.position;
         this.keyLight.position.set(camPos.x, camPos.y + 3, camPos.z + 5);
         this.keyLight.target.position.set(camPos.x, camPos.y, camPos.z - 50);

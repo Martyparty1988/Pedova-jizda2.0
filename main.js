@@ -1,19 +1,4 @@
+// ZMĚNA: Tento soubor nyní správně importuje a spouští hru.
 import { GameCore } from './game-core.js';
 
-/**
- * Spustí se po načtení celé stránky.
- * Inicializuje Service Worker pro PWA a poté spustí jádro hry.
- */
-window.onload = () => {
-    // Registrace Service Workeru pro PWA a offline funkčnost
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js')
-            .then(reg => console.log('Service Worker zaregistrován.', reg))
-            .catch(err => console.error('Chyba registrace Service Workeru:', err));
-    }
-
-    // Inicializace a spuštění hry
-    // OPRAVA: Vytvoříme instanci A ZAVOLÁME metodu init() pro spuštění načítání
-    const game = new GameCore();
-    game.init();
-};
+new GameCore();

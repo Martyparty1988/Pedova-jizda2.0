@@ -3,7 +3,8 @@ import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 export class Environment {
     constructor() {
         this.zoneThemes = {
-            aurora: { fogColor: 0x051010, ambientColor: 0x081520, baseColor: 0x00BFFF, accentColor: 0x8A2BE2, particleColor: 0x00BFFF },
+            // VYLEPŠENÍ: Jemně vyladěné barvy pro lepší harmonii
+            aurora: { fogColor: 0x051010, ambientColor: 0x102030, baseColor: 0x00BFFF, accentColor: 0x9F00FF, particleColor: 0x7DF9FF },
             sunset: { fogColor: 0x100505, ambientColor: 0x200808, baseColor: 0xFF007F, accentColor: 0xFFD700, particleColor: 0xFF007F },
             matrix: { fogColor: 0x051005, ambientColor: 0x082008, baseColor: 0x39FF14, accentColor: 0x008080, particleColor: 0x39FF14 }
         };
@@ -17,7 +18,6 @@ export class Environment {
     }
 
     createFuturisticTunnel() {
-        // VYLEPŠENÍ: Použití osmiúhelníkového tunelu pro lepší vzhled
         const tunnelGeo = new THREE.CylinderGeometry(10, 10, 200, 8, 1, true);
         
         const tunnelMat = new THREE.MeshStandardMaterial({
@@ -50,7 +50,7 @@ export class Environment {
         const divisions = 40;
         const gridHelper = new THREE.GridHelper(size, divisions, 0x00aacc, 0x444444);
         
-        // OPRAVA: Podlaha je správně umístěna na dno tunelu bez rotace
+        // OPRAVA: Mírná úprava pozice pro zajištění viditelnosti
         gridHelper.position.y = -10;
         
         return gridHelper;
@@ -59,7 +59,6 @@ export class Environment {
     createDigitalParticles() {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
-        // VYLEPŠENÍ: Částice jsou generovány v kruhu, aby lépe pasovaly do tunelu
         for (let i = 0; i < 400; i++) {
             const radius = Math.random() * 9.5;
             const angle = Math.random() * Math.PI * 2;
@@ -70,7 +69,8 @@ export class Environment {
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
         const material = new THREE.PointsMaterial({
-            size: 0.15,
+            // VYLEPŠENÍ: Menší částice
+            size: 0.1,
             color: this.zoneThemes.aurora.particleColor,
             transparent: true,
             opacity: 0.8,

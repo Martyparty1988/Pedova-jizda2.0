@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Procedurální underground runner v pražských stokách.">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#00AACC">
+    <meta name="theme-color" content="#0D0E1B">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Pedrova jízda">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,97 +14,75 @@
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,700;1,400&family=Teko:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-        <!-- TENTO ŘÁDEK JE KLÍČOVÝ PRO OPRAVU -->
-    <div id="game-container"></div>
-
+    
     <div id="collision-flash"></div>
+    <canvas id="game-canvas"></canvas>
 
     <div id="main-menu" class="screen active">
-        <div class="menu-content">
-            <div class="title-glitch-wrapper">
-                <h1 class="cyber-title menu-title" data-text="PEDROVA JÍZDA">PEDROVA JÍZDA</h1>
-            </div>
-            <p class="menu-subtitle">STOKY VOLAJÍ</p>
-            
+        <div class="ui-panel">
+            <h1 class="title">Pedrova jízda</h1>
+            <p class="subtitle">Absťák je jen začátek. Cesta nikdy nekončí.</p>
             <div id="menu-loading-container" class="menu-loading-container">
                 <div class="loading-spinner" id="menu-loading-spinner"></div>
                 <div class="loading-text" id="menu-loading-text"></div>
             </div>
-
-            <button class="cyber-btn menu-play-btn" id="play-btn" disabled>
+            <button class="action-btn" id="play-btn" disabled>
                 <span>💉 DÁT SI</span>
             </button>
         </div>
     </div>
 
     <div id="game-screen" class="screen">
-        <canvas id="game-canvas"></canvas>
         <div class="game-hud">
-            <div class="hud-panel">
-                <div class="cyber-score" id="current-score">0</div>
-                <!-- Přidáno počítadlo předmětů -->
-                <div class="collectible-display">
-                    <span class="collectible-icon">💉</span>
-                    <span class="collectible-count" id="collectible-count">0</span>
-                </div>
+            <div class="hud-left">
+                <div class="hud-score" id="current-score">0</div>
                 <div class="lives-container" id="lives-container"></div>
             </div>
-            <div class="hud-panel"><button id="pause-btn">||</button></div>
+            <div class="hud-right">
+                <button id="pause-btn">||</button>
+            </div>
         </div>
-        <div class="skill-indicator">
-            <div id="skill-superJump" class="skill-btn">SKOK+</div>
-            <div id="skill-dash" class="skill-btn">BOOST</div>
-        </div>
-        <div id="quote-display" class="quote-display"><div id="quote-text" class="quote-text"></div></div>
     </div>
 
     <div id="game-over" class="screen">
-        <div class="game-over-content">
-            <h2 class="game-over-title" data-text="KONEC JÍZDY">KONEC JÍZDY</h2>
-            <p id="game-over-quote" class="game-over-quote"></p>
+        <div class="ui-panel game-over-content">
+            <h2 class="title game-over-title">JÍZDA SKONČILA</h2>
+            <p id="game-over-quote" class="subtitle game-over-quote"></p>
             
             <div class="final-score-container">
-                <div class="final-score-label">DOSAŽENÉ SKÓRE</div>
+                <div class="final-score-label">FINÁLNÍ SKÓRE</div>
                 <div class="final-score" id="final-score">0</div>
             </div>
 
-            <div class="stats-grid" id="stats-grid">
+            <div class="stats-grid">
                 <div class="stat-item">
-                    <div class="stat-label">Nejlepší trip</div>
+                    <div class="stat-label">Nejlepší jízda</div>
                     <div class="stat-value" id="best-score">0</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-label">Doba jízdy</div>
+                    <div class="stat-label">Čas</div>
                     <div class="stat-value" id="game-time">0s</div>
                 </div>
             </div>
 
-            <div id="ai-summary-container" class="ai-summary-container">
-                <h3 class="ai-summary-title">ZHODNOCENÍ ABSŤÁKU</h3>
-                <div id="ai-summary-spinner" class="loading-spinner"></div>
-                <p id="ai-summary-text"></p>
-            </div>
-
             <div class="menu-buttons">
-                <button class="cyber-btn" id="restart-btn">🔄 Zkusit to znovu</button>
-                <button class="cyber-btn" id="analyze-run-btn">✍️ Zobrazit hodnocení</button>
-                <button class="cyber-btn" id="menu-btn">🏠 Zpátky na ulici</button>
+                <button class="action-btn" id="restart-btn">🔄 Nová Jízda</button>
+                <button class="action-btn" id="menu-btn">🏠 Hlavní Menu</button>
             </div>
         </div>
     </div>
-    
-    <div class="webgl-fallback" id="webgl-fallback">
-        <div class="glass-panel">
-            <h2 style="color:var(--junkie-magenta)">Motor selhal</h2>
-            <p>Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
+
+    <div id="webgl-fallback" class="screen">
+        <div class="ui-panel">
+            <h2 class="title">Motor selhal</h2>
+            <p class="subtitle">Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
         </div>
     </div>
 
     <script type="module" src="main.js"></script>
 </body>
 </html>
-

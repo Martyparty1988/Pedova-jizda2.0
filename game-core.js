@@ -7,7 +7,8 @@ const GRAVITY = -30;
 const JUMP_FORCE = 10;
 const LANE_WIDTH = 4;
 
-class GameCore {
+// ZMĚNA: Přidáno klíčové slovo 'export', aby bylo možné třídu importovat v main.js
+export class GameCore {
     constructor() {
         this.ui = new GameUI();
         this.logic = new GameLogic();
@@ -25,6 +26,8 @@ class GameCore {
         this.lastSwipeUpTime = 0;
         this.lastJumpKeyPressTime = 0;
         this.doubleTapDelay = 300;
+
+        this.init();
     }
 
     async init() {
@@ -260,4 +263,4 @@ class GameCore {
     }
 }
 
-new GameCore();
+// ZMĚNA: Odstraněno `new GameCore();` z konce souboru.

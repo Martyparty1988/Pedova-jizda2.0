@@ -1,8 +1,8 @@
 const HLASKY_JSON = {
     "start": [
-        "Začátek šichty, deska pod nohama, svědomí na dně.",
-        "Ruce se klepou, ale stejně musím vyrazit pro další jízdu.",
-        "Snídaně: čaj, cigáro a vítr ve vlasech.",
+        "Narvanej jak taška do chorvatska, svědomí na dně.",
+        "Ruce se klepou,oči jak toffife, ale jedu dál .",
+        "Snídaně: čára, cigáro a vítr v nose.",
         "Ještě rychlovka a možná budu člověk.",
         "Każdý den stejný – shánět, jezdit, hledat stín.",
         "Je mi blbě, ale absťák mě stejně donutí jet.",
@@ -27,14 +27,14 @@ const HLASKY_JSON = {
         "Jedu si pro další dávku rychlosti.",
         "Plnej plyn, žádný brzdy.",
         "Po zemi hledám víc než drobky.",
-        "Pálím to tunelem."
+        "Pálím to do káblu."
     ],
     // ZMĚNA: Nová kategorie hlášek pro super skok
     "super_jump": [
         "Letím si pro dávku stylu!",
         "Vzhůru do nebes!",
-        "Tohle bude bolet... při dopadu.",
-        "Maximální odraz!"
+        "Ta je tupá, tohle bude bolet....",
+        "Maximální odpal!"
     ],
     "collision": [
         "Narazil jsem, stejně jako s každou dávkou.",

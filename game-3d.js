@@ -2,7 +2,6 @@ import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { ShaderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/ShaderPass.js';
 import { Player } from './player.js';
 import { Environment } from './environment.js';
 import { GameObjectFactory } from './gameObjectFactory.js';
@@ -37,7 +36,8 @@ export class Game3D {
     setupPostProcessing() {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.6, 0.1);
+        // ZMĚNA: Upraveny parametry Bloom efektu pro ostřejší a čistší vzhled
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.6, 0.85);
         this.composer.addPass(bloomPass);
     }
 
@@ -69,6 +69,7 @@ export class Game3D {
         this.player.mesh.position.set(0, 0, 0);
         this.player.mesh.visible = true;
         this.camera.position.set(0, 4, 10);
+        this.camera.rotation.set(0, 0, 0);
         this.player.mesh.rotation.set(0, 0, 0);
         this.player.trickRotation = 0;
         this.player.frontFlipRotation = 0;
@@ -76,12 +77,19 @@ export class Game3D {
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
     }
     
+    // ZMĚNA: Přepracovaná funkce pro plynulejší pohyb a přidání osvětlení
     updateMenuBackground(delta) {
-        this.camera.position.z -= delta * 5;
-        this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
-        this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
-        this.camera.lookAt(0, 0, 0); // V menu se kamera dívá na střed
-        this.environment.update(delta * 5, this.camera.position);
+        this.camera.position.z -= delta * 2;
+        this.camera.rotation.y += delta * 0.05;
+        this.camera.position.y = 2 + Math.sin(Date.now() * 0.0002) * 2;
+        
+        // ZMĚNA: Hlavní světlo nyní sleduje kameru i v menu
+        const camPos = this.camera.position;
+        this.keyLight.position.set(camPos.x, camPos.y + 3, camPos.z + 5);
+        this.keyLight.target.position.set(camPos.x, camPos.y, camPos.z - 50);
+        this.keyLight.target.updateMatrixWorld();
+        
+        this.environment.update(delta * 2, this.camera.position);
         this.composer.render();
     }
     
@@ -149,7 +157,7 @@ export class Game3D {
         this.environment.update(moveZ, this.player.mesh.position);
         this.updateGameObjects(delta);
         this.checkCollisions(gameState);
-        this.cleanupObjects(gameState);
+        this.cleanupObjects();
         this.updateCameraAndLights();
         
         this.composer.render();
@@ -172,7 +180,6 @@ export class Game3D {
         this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
         this.camera.position.z = playerPos.z + 10;
         
-        // ZMĚNA: Přidán tento řádek pro opravu rotace kamery během hry
         this.camera.lookAt(playerPos.x, playerPos.y, playerPos.z - 20);
 
         this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
@@ -238,7 +245,7 @@ export class Game3D {
                     if (child.isMesh) {
                         child.geometry.dispose();
                         if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-                        else child.material.dispose();
+                        else if(child.material) child.material.dispose();
                     }
                 });
                 this.gameObjects.splice(i, 1);

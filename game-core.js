@@ -1,3 +1,4 @@
+import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { GameUI } from './game-ui.js';
 import { Game3D } from './game-3d.js';
 import { GameLogic } from './game-logic.js';

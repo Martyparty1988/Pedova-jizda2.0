@@ -1,95 +1,133 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
-import { Player } from './player.js';
-import { Environment } from './environment.js';
-import { GameObjectFactory } from './gameObjectFactory.js';
+import { Game3D } from './game-3d.js';
+import { GameUI } from './game-ui.js';
+import { GameLogic } from './game-logic.js';
+import { GameAudio } from './game-audio.js';
 
-export class Game3D {
-    constructor(gameCore) {
-        this.gameCore = gameCore;
-        this.scene = new THREE.Scene();
-        // OPRAVA: Zvětšení "dohledu" kamery, aby podlaha nezmizela
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
-        this.gameObjectFactory = new GameObjectFactory();
-        this.activeGameObjects = [];
-    }
-
-    init() {
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        document.getElementById('game-container').appendChild(this.renderer.domElement);
-
-        this.setupWorld();
-
-        window.addEventListener('resize', () => this.onWindowResize(), false);
-    }
-
-    setupWorld() {
-        this.environment = new Environment();
+export class GameCore {
+    constructor() {
+        this.isGameRunning = false;
+        this.totalTime = 0;
+        // OPRAVA: Vytvoření instance hodin pro měření času
+        this.clock = new THREE.Clock();
         
-        this.scene.add(this.environment.tunnel);
-        this.scene.add(this.environment.tunnelWireframe);
-        this.scene.add(this.environment.floor);
-        this.scene.add(this.environment.dustParticles);
-        this.scene.add(this.environment.lightRings);
-
-        this.player = new Player();
-        this.scene.add(this.player.mesh);
-        
-        this.ambientLight = new THREE.AmbientLight(0x404040, 2);
-        this.scene.add(this.ambientLight);
-        
-        this.pointLight = new THREE.PointLight(0xffffff, 1, 100);
-        this.scene.add(this.pointLight);
-
-        // OPRAVA: Posunutí mlhy dál, aby neodřezávala podlahu
-        this.scene.fog = new THREE.Fog(0x000000, 10, 60);
-        this.environment.setZone('aurora', this.scene, this.ambientLight);
-
-        this.camera.position.set(0, 1.5, 5);
-        this.camera.lookAt(this.player.mesh.position);
+        this.lastSwipe = 0;
+        this.swipeCooldown = 200; // ms
+        this.lastSuperSwipe = 0;
+        this.superSwipeCooldown = 500; // ms
     }
 
-    update(delta, gameLogic) {
-        const moveZ = gameLogic.speed * delta;
-        
-        this.player.update(delta, gameLogic);
-        this.environment.update(moveZ, this.player.mesh.position, this.gameCore.totalTime);
+    async init() {
+        try {
+            this.ui = new GameUI();
+            this.logic = new GameLogic();
+            this.audio = new GameAudio();
+            await this.audio.loadSounds();
 
-        this.camera.position.z = this.player.mesh.position.z + 5;
-        this.pointLight.position.copy(this.player.mesh.position).y += 2;
-
-        this.renderer.render(this.scene, this.camera);
-    }
-    
-    onWindowResize() {
-        this.camera.aspect = window.innerWidth / window.innerHeight;
-        this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-    }
-    
-    startIntroAnimation(callback) {
-        const startPos = new THREE.Vector3(0, 5, 10);
-        const endPos = new THREE.Vector3(0, 1.5, 5);
-        let t = 0;
-        const duration = 1.5;
-
-        const animate = () => {
-            t += 0.016 / duration; 
-            if (t > 1) {
-                t = 1;
-                this.camera.position.copy(endPos);
-                this.camera.lookAt(this.player.mesh.position);
-                callback();
-                return;
-            }
+            this.game3d = new Game3D(this);
+            this.game3d.init();
             
-            this.camera.position.lerpVectors(startPos, endPos, t * t * (3 - 2 * t)); // Smoothstep
-            this.camera.lookAt(this.player.mesh.position);
+            this.setupEventListeners();
             
-            this.renderer.render(this.scene, this.camera);
-            requestAnimationFrame(animate);
+            this.menuLoop();
+            
+        } catch (error) {
+            console.error("Fatální chyba při inicializaci hry:", error);
+            this.ui.showError("Nepodařilo se spustit hru. Zkuste obnovit stránku.");
         }
-        animate();
+    }
+    
+    setupEventListeners() {
+        this.ui.startButton.addEventListener('click', () => this.startGame());
+        this.ui.restartButton.addEventListener('click', () => this.startGame());
+
+        let touchstartX = 0;
+        let touchstartY = 0;
+        let touchendX = 0;
+        let touchendY = 0;
+
+        document.addEventListener('touchstart', e => {
+            touchstartX = e.changedTouches[0].screenX;
+            touchstartY = e.changedTouches[0].screenY;
+        }, { passive: false });
+
+        document.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            touchendY = e.changedTouches[0].screenY;
+            this.handleSwipe();
+        });
+        
+        const handleSwipe = () => {
+             const deltaX = touchendX - touchstartX;
+             const deltaY = touchendY - touchstartY;
+             const now = Date.now();
+
+            if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 30) {
+                if (deltaY < 0 && now - this.lastSwipe > this.swipeCooldown) { // Swipe up
+                    if(now - this.lastSuperSwipe < this.superSwipeCooldown){
+                        this.logic.requestSuperJump = true;
+                    } else {
+                        this.logic.requestJump = true;
+                    }
+                    this.lastSuperSwipe = now;
+                    this.lastSwipe = now;
+                }
+            }
+        };
+
+        document.addEventListener('keydown', (event) => {
+            if (!this.isGameRunning) return;
+            if (event.code === 'Space') {
+                this.logic.requestJump = true;
+            }
+        });
+    }
+
+    startGame() {
+        this.isGameRunning = true;
+        this.logic.reset();
+        this.ui.showHUD();
+        this.ui.updateLives(this.logic.lives);
+        this.ui.updateScore(this.logic.score);
+        this.ui.updateCollectibles(this.logic.collectibles);
+        this.audio.play('start');
+        
+        this.game3d.startIntroAnimation(() => {
+            this.gameLoop();
+        });
+    }
+
+    gameOver() {
+        this.isGameRunning = false;
+        this.ui.showGameOver(this.logic.score);
+        this.audio.play('gameOver');
+    }
+    
+    menuLoop() {
+        if (this.isGameRunning) return;
+        requestAnimationFrame(() => this.menuLoop());
+        const delta = this.clock.getDelta();
+        this.totalTime += delta;
+        // Zde může být animace pozadí v menu
+        this.game3d.renderer.render(this.game3d.scene, this.game3d.camera);
+    }
+
+    gameLoop() {
+        if (!this.isGameRunning) return;
+        
+        const delta = this.clock.getDelta();
+        this.totalTime += delta;
+
+        this.logic.update(delta);
+        this.game3d.update(delta, this.logic);
+        this.ui.updateScore(this.logic.score);
+
+        if (this.logic.isGameOver) {
+            this.gameOver();
+        } else {
+            requestAnimationFrame(() => this.gameLoop());
+        }
     }
 }
+
 

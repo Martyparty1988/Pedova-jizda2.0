@@ -1,10 +1,7 @@
-// OPRAVA: Definována konstantní výška pro hráče.
-const PLAYER_BASE_Y = 0.5;
-
-// OPRAVA: Přidán chybějící 'export' před definici třídy.
 export class GameLogic {
     constructor() {
         this.skills = {
+            doubleJump: { unlocked: true, cooldown: 0, duration: 2000 },
             dash: { unlocked: true, cooldown: 0, duration: 5000 },
             superJump: { unlocked: true, cooldown: 0, duration: 3000 }
         };
@@ -12,40 +9,21 @@ export class GameLogic {
 
     getInitialGameState() {
         return {
-            isPlaying: true,
-            isPaused: false,
-            isDashing: false,
-            score: 0,
-            // VYLEPŠENÍ: Nižší počáteční rychlost
-            speed: 7,
-            baseSpeed: 7,
-            maxSpeed: 30,
+            isPlaying: true, isPaused: false, isDashing: false,
+            score: 0, speed: 8, baseSpeed: 8, maxSpeed: 30,
             startTime: Date.now(),
-            playerY: PLAYER_BASE_Y,
-            playerVelocityY: 0,
-            jumpCount: 0,
-            lane: 1,
-            lives: 3,
-            maxLives: 5,
-            invincibilityTimer: 0,
-            hasShield: false,
-            runStats: {
-                jumps: 0,
-                dashes: 0,
-                powerups: 0,
-                obstaclesDodged: 0,
-                collectibles: 0
-            }
+            playerY: -0.6, playerVelocityY: 0, jumpCount: 0,
+            lane: 1, lives: 3, maxLives: 5,
+            invincibilityTimer: 0, hasShield: false,
+            runStats: { jumps: 0, dashes: 0, powerups: 0, obstaclesDodged: 0 }
         };
     }
 
     resetSkills() {
-        this.skills.dash.cooldown = 0;
-        this.skills.superJump.cooldown = 0;
+        Object.values(this.skills).forEach(skill => skill.cooldown = 0);
     }
 
-    updateSkills(delta, onUpdate) {
-        let needsUpdate = false;
+    updateSkills(delta) {
         if (this.currentGameState && this.currentGameState.invincibilityTimer > 0) {
             this.currentGameState.invincibilityTimer -= delta * 1000;
         }
@@ -53,14 +31,8 @@ export class GameLogic {
         for (const skill of Object.values(this.skills)) {
             if (skill.cooldown > 0) {
                 skill.cooldown -= delta * 1000;
-                if (skill.cooldown <= 0) {
-                    skill.cooldown = 0;
-                    needsUpdate = true;
-                }
+                if (skill.cooldown < 0) skill.cooldown = 0;
             }
-        }
-        if (needsUpdate && onUpdate) {
-            onUpdate();
         }
     }
     
@@ -71,9 +43,13 @@ export class GameLogic {
     }
 
     canJump(gameState) {
-        return gameState.jumpCount < 1 && gameState.playerY <= PLAYER_BASE_Y;
+        return gameState.jumpCount < 1 && gameState.playerY <= -0.6 && !gameState.isDoingFrontFlip;
     }
-    
+
+    canDoubleJump(gameState) {
+        return gameState.jumpCount < 2 && this.skills.doubleJump.cooldown <= 0;
+    }
+
     canSuperJump(gameState) {
         return this.skills.superJump.cooldown <= 0;
     }
@@ -84,22 +60,18 @@ export class GameLogic {
 
     updateScore(gameState, delta) {
         this.currentGameState = gameState;
-        // VYLEPŠENÍ: Plynulejší zrychlování
-        gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 3500);
+        gameState.speed = Math.min(gameState.maxSpeed, gameState.baseSpeed + (Date.now() - gameState.startTime) / 2500);
         gameState.score += Math.floor(gameState.speed * delta * 10);
     }
 
     updatePlayerVerticalPosition(gameState, delta, gravity) {
-        if (gameState.playerY > PLAYER_BASE_Y || gameState.playerVelocityY !== 0) {
+        if (gameState.playerY > -0.6 || gameState.playerVelocityY !== 0) {
             gameState.playerVelocityY += gravity * delta;
             gameState.playerY += gameState.playerVelocityY * delta;
-            if (gameState.playerY <= PLAYER_BASE_Y) {
-                gameState.playerY = PLAYER_BASE_Y;
+            if (gameState.playerY <= -0.6) {
+                gameState.playerY = -0.6;
                 gameState.playerVelocityY = 0;
                 gameState.jumpCount = 0;
-                if (gameState.isDoingSuperJump) {
-                    gameState.isDoingSuperJump = false;
-                }
             }
         }
     }
@@ -111,14 +83,11 @@ export class GameLogic {
         obj.mesh.visible = false;
         gameState.runStats.powerups++;
         
-        const powerupType = obj.powerupType;
+        const { powerupType } = obj;
 
-        if (powerupType === 'shield') {
-            gameState.hasShield = true;
-        } else if (powerupType === 'life') {
-            if (gameState.lives < gameState.maxLives) {
-                gameState.lives++;
-            }
+        if (powerupType === 'shield') gameState.hasShield = true;
+        else if (powerupType === 'life') {
+            if (gameState.lives < gameState.maxLives) gameState.lives++;
         } else { // 'speed'
             gameState.score += 500;
             gameState.baseSpeed += 1;
@@ -126,17 +95,6 @@ export class GameLogic {
         }
         
         return powerupType;
-    }
-    
-    collectCollectible(gameState, index, gameObjects) {
-        const obj = gameObjects[index];
-        if (!obj || !obj.mesh.visible) return null;
-
-        obj.mesh.visible = false;
-        gameState.runStats.collectibles++;
-        gameState.score += 50;
-
-        return obj.collectibleType;
     }
     
     consumeShield(gameState) {
@@ -172,4 +130,3 @@ export class GameLogic {
         elements['best-score'].textContent = localStorage.getItem('fp3d_bestScore') || 0;
     }
 }
-

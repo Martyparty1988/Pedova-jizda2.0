@@ -1,4 +1,3 @@
-import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { GameUI } from './game-ui.js';
 import { Game3D } from './game-3d.js';
 import { GameLogic } from './game-logic.js';
@@ -8,7 +7,7 @@ const GRAVITY = -30;
 const JUMP_FORCE = 10;
 const LANE_WIDTH = 4;
 
-export class GameCore {
+class GameCore {
     constructor() {
         this.ui = new GameUI();
         this.logic = new GameLogic();
@@ -25,8 +24,7 @@ export class GameCore {
 
         this.lastSwipeUpTime = 0;
         this.lastJumpKeyPressTime = 0;
-        // OPRAVA: Větší časové okno pro dvojité přejetí
-        this.doubleTapDelay = 500;
+        this.doubleTapDelay = 300;
     }
 
     async init() {
@@ -37,12 +35,16 @@ export class GameCore {
         try {
             menuLoadingText.textContent = 'Načítám 3D scénu...';
             await this.threeD.init();
+            
             menuLoadingText.textContent = 'Inicializuji audio...';
             this.audio.init();
+
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
+
             menuLoadingContainer.style.display = 'none';
             playBtn.disabled = false;
+            
             this.menuLoop();
         } catch (error) {
             console.error("Fatální chyba při inicializaci hry:", error);
@@ -53,19 +55,19 @@ export class GameCore {
     setupEventListeners() {
         const addListener = (id, event, handler) => {
             const element = this.ui.elements[id];
-            if (element) element.addEventListener(event, handler);
-            else console.warn(`Element s ID '${id}' nebyl nalezen.`);
+            if (element) {
+                element.addEventListener(event, handler);
+            }
         };
 
         addListener('play-btn', 'click', () => this.startGame());
         addListener('restart-btn', 'click', () => this.startGame());
         addListener('menu-btn', 'click', () => {
             this.ui.showScreen('main-menu');
-            this.threeD.player.mesh.visible = false;
+            if (this.threeD.player) this.threeD.player.mesh.visible = false;
             this.menuLoop();
         });
         addListener('pause-btn', 'click', () => this.togglePause());
-        addListener('analyze-run-btn', 'click', () => this.ui.analyzeRun());
 
         window.addEventListener('resize', () => this.threeD.onWindowResize());
         window.addEventListener('keydown', (e) => this.handleInput('keydown', e));
@@ -85,12 +87,12 @@ export class GameCore {
         
         this.audio.resumeContext();
         this.gameState = this.logic.getInitialGameState();
+        this.gameState.isDoingTrick = false; 
+        this.gameState.isDoingFrontFlip = false;
         this.logic.resetSkills();
         this.threeD.reset();
         this.ui.showScreen('game-screen');
-        this.ui.updateSkillUI(this.logic.skills);
         this.ui.updateLives(this.gameState.lives);
-        this.ui.updateCollectibles(0);
         
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.gameLoop();
@@ -99,42 +101,39 @@ export class GameCore {
     menuLoop() {
         if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
         this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
-        this.threeD.updateMenuBackground(this.threeD.clock.getDelta());
+        const delta = this.threeD.clock.getDelta();
+        this.threeD.updateMenuBackground(delta);
     }
     
     gameLoop() {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
         if (this.gameState.isPaused) return;
-        this.update(this.threeD.clock.getDelta());
+
+        const delta = this.threeD.clock.getDelta();
+        this.update(delta);
     }
 
     update(delta) {
         this.logic.updateScore(this.gameState, delta);
         this.ui.updateScore(this.gameState.score);
         this.logic.updatePlayerVerticalPosition(this.gameState, delta, GRAVITY);
-        this.logic.updateSkills(delta, () => this.ui.updateSkillUI(this.logic.skills));
-        this.threeD.update(this.gameState, (this.gameState.lane - 1) * LANE_WIDTH, delta);
+        this.logic.updateSkills(delta, null);
+
+        const targetX = (this.gameState.lane - 1) * LANE_WIDTH;
+        this.threeD.update(this.gameState, targetX, delta);
     }
 
     handleCollision(type, index) {
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
             if (powerupType === 'life' || powerupType === 'shield') {
+                this.ui.updateLives(this.gameState.lives);
                 this.audio.playSound('powerup_shield');
-                this.ui.showQuote('powerup');
-                if (powerupType === 'life') this.ui.updateLives(this.gameState.lives);
             } else {
                 this.audio.playSound('powerup');
-                this.ui.showQuote('powerup');
-                this.ui.triggerScoreGlow();
             }
             this.audio.vibrate(50);
-        } else if (type === 'collectible') {
-            this.logic.collectCollectible(this.gameState, index, this.threeD.gameObjects);
-            this.audio.playSound('collectible');
-            this.ui.triggerScoreGlow();
-            this.ui.updateCollectibles(this.gameState.runStats.collectibles);
         } else if (type === 'obstacle') {
             if (this.gameState.invincibilityTimer > 0) return;
 
@@ -144,14 +143,17 @@ export class GameCore {
                 if(this.threeD.gameObjects[index]) this.threeD.gameObjects[index].mesh.visible = false;
                 this.gameState.invincibilityTimer = 1000;
             } else {
-                const flash = document.getElementById('collision-flash');
-                flash.classList.add('flash');
-                setTimeout(() => flash.classList.remove('flash'), 500);
+                document.getElementById('collision-flash').classList.add('flash');
+                setTimeout(() => document.getElementById('collision-flash').classList.remove('flash'), 500);
                 this.audio.vibrate([100, 50, 100]);
                 this.audio.playSound('collision');
+
                 const isGameOver = this.logic.handlePlayerHit(this.gameState);
                 this.ui.updateLives(this.gameState.lives);
-                if (isGameOver) this.gameOver();
+                
+                if (isGameOver) {
+                    this.gameOver();
+                }
             }
         }
     }
@@ -159,7 +161,7 @@ export class GameCore {
     gameOver() {
         if (!this.gameState.isPlaying) return;
         this.gameState.isPlaying = false;
-        this.ui.showQuote('gameover');
+        
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
         this.ui.showGameOver(finalStats);
@@ -219,20 +221,24 @@ export class GameCore {
             this.gameState.jumpCount = 1;
             this.gameState.runStats.jumps++;
             this.audio.playSound('jump');
-            this.ui.showQuote('jump');
+        } else if (this.logic.canDoubleJump(this.gameState)) {
+            this.gameState.playerVelocityY = JUMP_FORCE * 0.9;
+            this.gameState.jumpCount = 2;
+            this.logic.activateSkill('doubleJump');
+            this.gameState.runStats.jumps++;
+            this.gameState.isDoingTrick = true;
+            this.audio.playSound('jump');
         }
     }
 
     doSuperJump() {
         if (this.logic.canJump(this.gameState) && this.logic.canSuperJump(this.gameState)) {
             this.logic.activateSkill('superJump');
-            this.ui.updateSkillUI(this.logic.skills);
             this.gameState.playerVelocityY = JUMP_FORCE * 1.5;
-            this.gameState.jumpCount = 1; 
-            this.gameState.isDoingSuperJump = true;
+            this.gameState.jumpCount = 1;
+            this.gameState.isDoingFrontFlip = true;
             this.gameState.runStats.jumps++;
             this.audio.playSound('super_jump');
-            this.ui.showQuote('super_jump');
         }
     }
 
@@ -241,10 +247,8 @@ export class GameCore {
             this.audio.vibrate(75);
             this.gameState.isDashing = true;
             this.logic.activateSkill('dash');
-            this.ui.updateSkillUI(this.logic.skills);
             this.gameState.runStats.dashes++;
             this.audio.playSound('dash');
-            this.ui.showQuote('boost');
             setTimeout(() => this.gameState.isDashing = false, 300);
         }
     }
@@ -255,3 +259,5 @@ export class GameCore {
         this.ui.togglePause(this.gameState.isPaused);
     }
 }
+
+new GameCore();

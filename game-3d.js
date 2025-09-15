@@ -80,7 +80,7 @@ export class Game3D {
         this.camera.position.z -= delta * 5;
         this.camera.position.x = Math.sin(Date.now() * 0.0001) * 5;
         this.camera.position.y = 2 + Math.cos(Date.now() * 0.0002) * 2;
-        this.camera.lookAt(this.scene.position);
+        this.camera.lookAt(0, 0, 0); // V menu se kamera dívá na střed
         this.environment.update(delta * 5, this.camera.position);
         this.composer.render();
     }
@@ -172,6 +172,9 @@ export class Game3D {
         this.camera.position.y += (playerPos.y + 3 - this.camera.position.y) * 0.1;
         this.camera.position.z = playerPos.z + 10;
         
+        // ZMĚNA: Přidán tento řádek pro opravu rotace kamery během hry
+        this.camera.lookAt(playerPos.x, playerPos.y, playerPos.z - 20);
+
         this.keyLight.position.set(playerPos.x, playerPos.y + 5, playerPos.z + 5);
         this.keyLight.target.position.set(playerPos.x, playerPos.y, playerPos.z - 50);
         this.keyLight.target.updateMatrixWorld();

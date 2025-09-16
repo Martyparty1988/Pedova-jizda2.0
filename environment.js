@@ -81,40 +81,70 @@ export class Environment {
     }
 
     createFuturisticHexTexture() {
-        const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+        const canvas = document.createElement('canvas');
+        // ZMĚNA: Zvýšeno rozlišení textury z 256x256 na 1024x1024
+        canvas.width = 1024;
+        canvas.height = 1024;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#050810'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.strokeStyle = 'rgba(0, 191, 255, 0.2)'; ctx.lineWidth = 2;
-        const hexSize = 32; const hexHeight = hexSize * Math.sqrt(3);
+        
+        ctx.fillStyle = '#050810';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = 'rgba(0, 191, 255, 0.2)';
+        // ZMĚNA: Tlustší čáry pro nové rozlišení
+        ctx.lineWidth = 4;
+
+        // ZMĚNA: Větší velikost hexů, aby vzor nebyl příliš hustý
+        const hexSize = 64; 
+        const hexHeight = hexSize * Math.sqrt(3);
+        
         for (let row = -1; row < canvas.height / hexHeight + 1; row++) {
             for (let col = -1; col < canvas.width / (hexSize * 1.5) + 1; col++) {
-                let x = col * hexSize * 1.5; let y = row * hexHeight;
+                let x = col * hexSize * 1.5;
+                let y = row * hexHeight;
                 if (col % 2 === 1) { y += hexHeight / 2; }
                 ctx.beginPath();
                 for (let i = 0; i < 6; i++) {
                     const angle = (Math.PI / 3) * i;
                     ctx.lineTo(x + hexSize * Math.cos(angle), y + hexSize * Math.sin(angle));
                 }
-                ctx.closePath(); ctx.stroke();
+                ctx.closePath();
+                ctx.stroke();
             }
         }
         return new THREE.CanvasTexture(canvas);
     }
 
     createFuturisticGridTexture() {
-        const canvas = document.createElement('canvas'); canvas.width = 128; canvas.height = 128;
+        const canvas = document.createElement('canvas');
+        // ZMĚNA: Zvýšeno rozlišení textury z 128x128 na 512x512
+        canvas.width = 512;
+        canvas.height = 512;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = 'transparent'; ctx.fillRect(0, 0, 128, 128);
-        ctx.strokeStyle = 'rgba(0, 191, 255, 0.5)'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 128); ctx.moveTo(0, 0); ctx.lineTo(128, 0); ctx.stroke();
-        ctx.fillStyle = 'rgba(0, 191, 255, 0.8)'; ctx.fillRect(0,0,5,5);
+        
+        ctx.fillStyle = 'transparent';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.strokeStyle = 'rgba(0, 191, 255, 0.5)';
+        // ZMĚNA: Tlustší čáry
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(0, canvas.height);
+        ctx.moveTo(0, 0); ctx.lineTo(canvas.width, 0);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(0, 191, 255, 0.8)';
+        // ZMĚNA: Větší tečka
+        ctx.fillRect(0,0,20,20);
         return new THREE.CanvasTexture(canvas);
     }
 
     createParticleCanvas() {
-        const canvas = document.createElement('canvas'); canvas.width = 32; canvas.height = 32;
+        const canvas = document.createElement('canvas');
+        canvas.width = 32; canvas.height = 32;
         const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, 32, 32);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, 32, 32);
         return canvas;
     }
 

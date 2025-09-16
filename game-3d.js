@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
-// ZMĚNA: UnrealBloomPass se již neimportuje
+import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { Player } from './player.js';
 import { Environment } from './environment.js';
 import { GameObjectFactory } from './gameObjectFactory.js';
@@ -26,9 +26,10 @@ export class Game3D {
         this.playerCollider = new THREE.Box3();
         this.obstacleCollider = new THREE.Box3();
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
+        
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.setClearColor(0x000000, 0);
+        
         this.setupPostProcessing();
         this.setupWorld();
     }
@@ -36,8 +37,14 @@ export class Game3D {
     setupPostProcessing() {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
-        
-        // ZMĚNA: Efekt UnrealBloomPass byl kompletně odstraněn, abychom zaručili 100% ostrý obraz.
+
+        // ZMĚNA #1: Můžeme vrátit rozumné hodnoty pro Bloom, protože teď bude fungovat správně
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.4, 0.85);
+        this.composer.addPass(bloomPass);
+
+        // ZMĚNA #2: TOTO JE KLÍČOVÁ OPRAVA PRO ODSTRANĚNÍ ROZMAZÁNÍ
+        // Nastavíme composeru stejný pixel ratio jako má renderer.
+        this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
 
     setupWorld() {
@@ -255,6 +262,7 @@ export class Game3D {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        // ZMĚNA #3: Composer se také musí aktualizovat při změně velikosti okna
         this.composer.setSize(window.innerWidth, window.innerHeight);
     }
 }

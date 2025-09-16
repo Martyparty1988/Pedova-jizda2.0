@@ -1,7 +1,7 @@
 import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 import { EffectComposer } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/postprocessing/UnrealBloomPass.js';
+// ZMĚNA: UnrealBloomPass se již neimportuje
 import { Player } from './player.js';
 import { Environment } from './environment.js';
 import { GameObjectFactory } from './gameObjectFactory.js';
@@ -37,10 +37,7 @@ export class Game3D {
         this.composer = new EffectComposer(this.renderer);
         this.composer.addPass(new RenderPass(this.scene, this.camera));
         
-        // ZMĚNA #1: Výrazně zjemněný Bloom efekt pro ostrý obraz
-        // parametry: (rozlišení, síla, poloměr, práh)
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.2, 0.95);
-        this.composer.addPass(bloomPass);
+        // ZMĚNA: Efekt UnrealBloomPass byl kompletně odstraněn, abychom zaručili 100% ostrý obraz.
     }
 
     setupWorld() {
@@ -48,10 +45,7 @@ export class Game3D {
         this.environment = new Environment();
         this.objectFactory = new GameObjectFactory();
         
-        // ZMĚNA #2: Mlha začíná dál od kamery
         this.scene.fog = new THREE.Fog(0x0D0E1B, 50, 130);
-        
-        // ZMĚNA #3: Mírně silnější a sytější ambientní světlo pro lepší viditelnost
         this.ambientLight = new THREE.AmbientLight(0x50609F, 3.8);
         this.scene.add(this.ambientLight);
 

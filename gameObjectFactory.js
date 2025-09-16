@@ -2,19 +2,20 @@ import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
 
 const LANE_WIDTH = 4;
 
+// ZMĚNA: Zvýšena intenzita svícení materiálů
 const laserMat = new THREE.MeshBasicMaterial({ 
     color: 0xFF007F, side: THREE.DoubleSide, transparent: true, 
     opacity: 0.7, blending: THREE.AdditiveBlending
 });
 
 const energyMat = new THREE.MeshStandardMaterial({
-    color: 0x39FF14, emissive: 0x39FF14, emissiveIntensity: 0.8,
+    color: 0x39FF14, emissive: 0x39FF14, emissiveIntensity: 1.5,
     transparent: true, opacity: 0.7
 });
 
 const dataBlockMat = new THREE.MeshStandardMaterial({ 
     color: 0x333333, metalness: 0.9, roughness: 0.2, 
-    emissive: 0xFFD700, emissiveIntensity: 0.6, wireframe: true
+    emissive: 0xFFD700, emissiveIntensity: 1.0, wireframe: true
 });
 
 export class GameObjectFactory {
@@ -24,14 +25,14 @@ export class GameObjectFactory {
         const group = new THREE.Group();
         const type = Math.random();
 
-        if (type < 0.3) { // Laserová stěna
+        if (type < 0.3) {
             const isHigh = Math.random() > 0.5;
             const geo = new THREE.PlaneGeometry(LANE_WIDTH * 3.2, 1);
             const laser = new THREE.Mesh(geo, laserMat);
             laser.position.y = isHigh ? 2.5 : 0;
             group.add(laser);
 
-        } else if (type < 0.6) { // Energetické bariéry
+        } else if (type < 0.6) {
             const gapLane = Math.floor(Math.random() * 3);
             const geo = new THREE.BoxGeometry(LANE_WIDTH, 8, 0.5);
             for (let i = 0; i < 3; i++) {
@@ -41,7 +42,7 @@ export class GameObjectFactory {
                 group.add(bar);
             }
         
-        } else { // Pohyblivý datový blok
+        } else {
             const lane = Math.random() < 0.5 ? 0 : 2;
             const direction = lane === 0 ? 1 : -1;
             const geo = new THREE.BoxGeometry(LANE_WIDTH - 2, LANE_WIDTH - 2, LANE_WIDTH - 2);
@@ -63,16 +64,19 @@ export class GameObjectFactory {
 
         if (powerupType === 'shield') {
             const geo = new THREE.SphereGeometry(0.5, 16, 16);
-            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x00BFFF, emissiveIntensity: 3 });
+            // ZMĚNA: Zvýšena intenzita
+            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x00BFFF, emissiveIntensity: 5 });
             mesh = new THREE.Mesh(geo, mat);
         } else if (powerupType === 'life') {
             const geo = new THREE.TorusGeometry(0.4, 0.15, 8, 16);
-            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xFF007F, emissiveIntensity: 3 });
+            // ZMĚNA: Zvýšena intenzita
+            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0xFF007F, emissiveIntensity: 5 });
             mesh = new THREE.Mesh(geo, mat);
             mesh.rotation.x = Math.PI / 2;
         } else { // 'speed'
             const geo = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
-            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x39FF14, emissiveIntensity: 2 });
+            // ZMĚNA: Zvýšena intenzita
+            const mat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x39FF14, emissiveIntensity: 4 });
             mesh = new THREE.Mesh(geo, mat);
             mesh.rotation.x = Math.PI / 2;
         }

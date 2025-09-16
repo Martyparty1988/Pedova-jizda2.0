@@ -11,8 +11,9 @@ export class Player {
     createPlayerMesh() {
         const playerGroup = new THREE.Group();
         const armorMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, metalness: 0.95, roughness: 0.15 });
-        const neonMat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x003366, emissiveIntensity: 0.8, transparent: true, opacity: 0.9 });
-        const visorMat = new THREE.MeshPhongMaterial({ color: 0x001122, transparent: true, opacity: 0.3, reflectivity: 0.9, emissive: 0x0066ff, emissiveIntensity: 0.3 });
+        // ZMĚNA: Mírně zvýšena intenzita
+        const neonMat = new THREE.MeshPhongMaterial({ color: 0x00ffff, emissive: 0x003366, emissiveIntensity: 1.5, transparent: true, opacity: 0.9 });
+        const visorMat = new THREE.MeshPhongMaterial({ color: 0x001122, transparent: true, opacity: 0.3, reflectivity: 0.9, emissive: 0x0066ff, emissiveIntensity: 0.5 });
         const boardMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.9, roughness: 0.2, emissive: 0x002244, emissiveIntensity: 0.2 });
 
         const boardGroup = new THREE.Group();
@@ -70,7 +71,7 @@ export class Player {
         playerGroup.rotation.x = 0.1;
 
         this.riderGroup = riderGroup;
-        this.neonElements = [neonStrip, chestLight, ...thrusterGroup.children.map(t => t.material)];
+        this.neonElements = [neonStrip.material, chestLight.material, ...thrusterGroup.children.map(t => t.material)];
 
         return playerGroup;
     }
@@ -82,9 +83,9 @@ export class Player {
         this.mesh.position.y = -0.4 + Math.sin(t * 2.2) * 0.12;
         this.mesh.rotation.z = Math.cos(t * 1.8) * 0.04;
         this.riderGroup.scale.y = 1 + Math.sin(t * 3.0) * 0.05;
-        this.visor.material.emissiveIntensity = 0.3 + Math.sin(t * 5) * 0.2;
+        this.visor.material.emissiveIntensity = 0.5 + Math.sin(t * 5) * 0.4;
 
-        const neonPulse = 0.6 + Math.sin(t * 4.0) * 0.3;
+        const neonPulse = 1.0 + Math.sin(t * 4.0) * 0.5;
         this.neonElements.forEach(mat => mat.emissiveIntensity = neonPulse);
 
         if (this.thrusters) {
@@ -96,9 +97,10 @@ export class Player {
     }
 
     activateBoost() {
-        this.neonElements.forEach(mat => mat.emissiveIntensity = 1.5);
+        // ZMĚNA: Zvýšena intenzita
+        this.neonElements.forEach(mat => mat.emissiveIntensity = 3.0);
         if (this.thrusters) {
-            this.thrusters.children.forEach(thruster => thruster.scale.y = 1.3);
+            this.thrusters.children.forEach(thruster => thruster.scale.y = 1.5);
         }
     }
 

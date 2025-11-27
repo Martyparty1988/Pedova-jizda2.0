@@ -1,9 +1,10 @@
-const CACHE_NAME = 'pedrova-jizda-cache-v6';
+const CACHE_NAME = 'pedrova-jizda-cache-v7';
 const assetsToCache = [
   './',
   'index.html',
   'manifest.json',
   'style.css',
+  'main.js',
   'game-core.js',
   'game-3d.js',
   'game-ui.js',

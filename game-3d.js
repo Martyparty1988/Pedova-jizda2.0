@@ -28,7 +28,7 @@ export class Game3D {
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
         
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setPixelRatio(this.getPixelRatio());
         
         this.setupPostProcessing();
         this.setupWorld();
@@ -44,7 +44,7 @@ export class Game3D {
 
         // ZMĚNA #2: TOTO JE KLÍČOVÁ OPRAVA PRO ODSTRANĚNÍ ROZMAZÁNÍ
         // Nastavíme composeru stejný pixel ratio jako má renderer.
-        this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.composer.setPixelRatio(this.getPixelRatio());
     }
 
     setupWorld() {
@@ -258,12 +258,25 @@ export class Game3D {
         }
     }
 
+    getPixelRatio() {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+            || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+        // iOS Safari vypadá s postprocessingem měkce při nízkém DPR.
+        // Na iPhonech dovolíme vyšší strop pro ostřejší výstup.
+        const maxPixelRatio = isIOS ? 3 : 2;
+        return Math.min(window.devicePixelRatio || 1, maxPixelRatio);
+    }
+
     onWindowResize() {
         if (!this.camera || !this.renderer) return;
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(this.getPixelRatio());
+
         // ZMĚNA #3: Composer se také musí aktualizovat při změně velikosti okna
         this.composer.setSize(window.innerWidth, window.innerHeight);
+        this.composer.setPixelRatio(this.getPixelRatio());
     }
 }

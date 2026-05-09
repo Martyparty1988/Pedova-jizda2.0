@@ -254,14 +254,67 @@ export class Game3D {
         }
     }
 
+    getViewportSize() {
+        const viewport = window.visualViewport;
+        const fallbackWidth = this.canvas?.clientWidth || window.innerWidth;
+        const fallbackHeight = this.canvas?.clientHeight || window.innerHeight;
+
+        if (!viewport) {
+            return { width: fallbackWidth, height: fallbackHeight };
+        }
+
+        // visualViewport umí vracet desetinné hodnoty i při scroll/zoom změnách.
+        // Zaokrouhlení pomáhá vyhnout se rozmazání kvůli sub-pixel velikostem.
+        return {
+            width: Math.round(viewport.width),
+            height: Math.round(viewport.height),
+        };
+    }
+
     getPixelRatio() {
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
             || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
+        const viewportScale = window.visualViewport?.scale || 1;
+        const baseRatio = (window.devicePixelRatio || 1) * viewportScale;
+
         // iOS Safari vypadá s postprocessingem měkce při nízkém DPR.
         // Na iPhonech dovolíme vyšší strop pro ostřejší výstup.
-        const maxPixelRatio = isIOS ? 3 : 2;
-        return Math.min(window.devicePixelRatio || 1, maxPixelRatio);
+        const maxPixelRatio = isIOS ? 3 : 2.5;
+        return Math.min(baseRatio, maxPixelRatio);
+    }
+
+
+    syncRenderResolution() {
+        const pixelRatio = this.getPixelRatio();
+        const { width, height } = this.getViewportSize();
+
+        if (this.renderer) {
+            this.renderer.setPixelRatio(pixelRatio);
+            this.renderer.setSize(width, height, false);
+        }
+
+        if (this.composer) {
+            this.composer.setPixelRatio(pixelRatio);
+            this.composer.setSize(width, height);
+        }
+    }
+
+    setupRuntimeViewportListeners() {
+        if (this.viewportResizeHandler) return;
+
+        this.viewportResizeHandler = () => {
+            if (this.viewportResizeRaf) cancelAnimationFrame(this.viewportResizeRaf);
+            this.viewportResizeRaf = requestAnimationFrame(() => this.onWindowResize());
+        };
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', this.viewportResizeHandler);
+            window.visualViewport.addEventListener('scroll', this.viewportResizeHandler);
+        } else {
+            window.addEventListener('resize', this.viewportResizeHandler);
+            window.addEventListener('orientationchange', this.viewportResizeHandler);
+        }
     }
 
 
@@ -295,7 +348,9 @@ export class Game3D {
 
     onWindowResize() {
         if (!this.camera || !this.renderer) return;
-        this.camera.aspect = window.innerWidth / window.innerHeight;
+        const { width, height } = this.getViewportSize();
+        if (!width || !height) return;
+        this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.syncRenderResolution();
     }

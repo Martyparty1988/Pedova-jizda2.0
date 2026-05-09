@@ -27,11 +27,10 @@ export class Game3D {
         this.obstacleCollider = new THREE.Box3();
         this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
         
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(this.getPixelRatio());
-        
         this.setupPostProcessing();
+        this.syncRenderResolution();
         this.setupWorld();
+        this.setupRuntimeViewportListeners();
     }
     
     setupPostProcessing() {
@@ -42,9 +41,6 @@ export class Game3D {
         const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.4, 0.85);
         this.composer.addPass(bloomPass);
 
-        // ZMĚNA #2: TOTO JE KLÍČOVÁ OPRAVA PRO ODSTRANĚNÍ ROZMAZÁNÍ
-        // Nastavíme composeru stejný pixel ratio jako má renderer.
-        this.composer.setPixelRatio(this.getPixelRatio());
     }
 
     setupWorld() {
@@ -268,15 +264,39 @@ export class Game3D {
         return Math.min(window.devicePixelRatio || 1, maxPixelRatio);
     }
 
+
+    syncRenderResolution() {
+        const pixelRatio = this.getPixelRatio();
+
+        if (this.renderer) {
+            this.renderer.setPixelRatio(pixelRatio);
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        if (this.composer) {
+            this.composer.setPixelRatio(pixelRatio);
+            this.composer.setSize(window.innerWidth, window.innerHeight);
+        }
+    }
+
+    setupRuntimeViewportListeners() {
+        if (this.viewportResizeHandler) return;
+
+        this.viewportResizeHandler = () => this.onWindowResize();
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', this.viewportResizeHandler);
+            window.visualViewport.addEventListener('scroll', this.viewportResizeHandler);
+        } else {
+            window.addEventListener('resize', this.viewportResizeHandler);
+            window.addEventListener('orientationchange', this.viewportResizeHandler);
+        }
+    }
+
     onWindowResize() {
         if (!this.camera || !this.renderer) return;
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
-        this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(this.getPixelRatio());
-
-        // ZMĚNA #3: Composer se také musí aktualizovat při změně velikosti okna
-        this.composer.setSize(window.innerWidth, window.innerHeight);
-        this.composer.setPixelRatio(this.getPixelRatio());
+        this.syncRenderResolution();
     }
 }

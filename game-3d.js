@@ -214,10 +214,15 @@ export class Game3D {
         const zPos = this.player.mesh.position.z - 150;
         let newObject;
 
-        if (rand < 0.70) newObject = this.objectFactory.createObstacle(zPos);
-        else if (rand < 0.85) newObject = this.objectFactory.createPowerup('speed', zPos);
-        else if (rand < 0.95) newObject = this.objectFactory.createPowerup('shield', zPos);
-        else newObject = this.objectFactory.createPowerup('life', zPos);
+        if (rand < 0.70) {
+            newObject = this.objectFactory.createObstacle(zPos);
+        } else if (rand < 0.85) {
+            newObject = this.objectFactory.createPowerup('speed', zPos);
+        } else if (rand < 0.95) {
+            newObject = this.objectFactory.createPowerup('shield', zPos);
+        } else {
+            newObject = this.objectFactory.createPowerup('life', zPos);
+        }
         
         if (newObject.mesh) {
             this.scene.add(newObject.mesh);

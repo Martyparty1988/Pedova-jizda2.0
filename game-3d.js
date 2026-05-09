@@ -139,9 +139,10 @@ export class Game3D {
         }
 
         this.lastSpawnZ += moveZ;
-        if (this.lastSpawnZ > (600 / gameState.speed)) {
+        const spawnThreshold = 600 / gameState.speed;
+        while (this.lastSpawnZ > spawnThreshold) {
             this.spawnObject();
-            this.lastSpawnZ = 0;
+            this.lastSpawnZ -= spawnThreshold;
         }
         
         if (gameState.invincibilityTimer > 0) {

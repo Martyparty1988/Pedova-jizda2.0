@@ -130,6 +130,10 @@ export class GameCore {
     handleCollision(type, index) {
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
+            if (powerupType) {
+                this.disposeAndRemoveGameObject(index);
+            }
+
             if (powerupType === 'life' || powerupType === 'shield') {
                 this.ui.updateLives(this.gameState.lives);
                 this.audio.playSound('powerup_shield');
@@ -159,6 +163,24 @@ export class GameCore {
                 }
             }
         }
+    }
+
+
+
+    disposeAndRemoveGameObject(index) {
+        const obj = this.threeD.gameObjects[index];
+        if (!obj || !obj.mesh) return;
+
+        this.threeD.scene.remove(obj.mesh);
+        obj.mesh.traverse(child => {
+            if (child.isMesh) {
+                if (child.geometry) child.geometry.dispose();
+                if (Array.isArray(child.material)) child.material.forEach(m => m && m.dispose && m.dispose());
+                else if (child.material && child.material.dispose) child.material.dispose();
+            }
+        });
+
+        this.threeD.gameObjects.splice(index, 1);
     }
 
     gameOver() {
@@ -199,6 +221,12 @@ export class GameCore {
             }
             this.touchStart = null;
         } else if (type === 'keydown') {
+            if (event.code === 'Escape' || event.code === 'KeyP') {
+                event.preventDefault();
+                this.togglePause();
+                return;
+            }
+
             switch (event.code) {
                 case 'ArrowLeft': case 'KeyA': this.gameState.lane = Math.max(0, this.gameState.lane - 1); break;
                 case 'ArrowRight': case 'KeyD': this.gameState.lane = Math.min(2, this.gameState.lane + 1); break;

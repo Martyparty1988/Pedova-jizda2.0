@@ -138,10 +138,11 @@ export class Game3D {
             this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
         }
 
+        const spawnThreshold = 600 / gameState.speed;
         this.lastSpawnZ += moveZ;
-        if (this.lastSpawnZ > (600 / gameState.speed)) {
+        while (this.lastSpawnZ >= spawnThreshold) {
             this.spawnObject();
-            this.lastSpawnZ = 0;
+            this.lastSpawnZ -= spawnThreshold;
         }
         
         if (gameState.invincibilityTimer > 0) {

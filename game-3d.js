@@ -13,6 +13,7 @@ export class Game3D {
 constructor(options) {
 this.canvas = options.canvas;
 this.onCollision = options.onCollision;
+this.onObstaclePassed = options.onObstaclePassed || null;
 this.gameObjects = [];
 this.lastSpawnZ = 0;
 this.currentZone = ‘aurora’;
@@ -297,6 +298,12 @@ cleanupObjects() {
     for (let i = this.gameObjects.length - 1; i >= 0; i--) {
         const obj = this.gameObjects[i];
         if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 14) {
+            // Near-miss: pokud je překážka blízko středu pruhu hráče při průchodu
+            if (obj.type === 'obstacle' && this.onObstaclePassed) {
+                const lateralDist = Math.abs(obj.mesh.position.x - this.player.mesh.position.x);
+                const closeness = Math.max(0, 1 - lateralDist / 3.5);
+                if (closeness > 0.1) this.onObstaclePassed(closeness);
+            }
             this.disposeObject(obj.mesh);
             this.gameObjects.splice(i, 1);
         }

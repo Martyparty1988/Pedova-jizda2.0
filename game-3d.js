@@ -30,6 +30,8 @@ export class Game3D {
         this.clock = new THREE.Clock();
         this.playerCollider = new THREE.Box3();
         this.obstacleCollider = new THREE.Box3();
+        this.playerColliderCenter = new THREE.Vector3();
+        this.playerColliderSize = new THREE.Vector3(1.05, 2.1, 1.05);
 
         this.renderer = new THREE.WebGLRenderer({
             canvas: this.canvas,
@@ -259,7 +261,15 @@ export class Game3D {
     
     checkCollisions() {
         if (!this.player.mesh.visible) return;
-        this.playerCollider.setFromObject(this.player.mesh);
+
+        // Nepoužíváme setFromObject(player.mesh), protože hráč má jako child i štít.
+        // I neviditelný velký štít umí zvětšit hitbox a způsobit falešné kolize.
+        this.playerColliderCenter.set(
+            this.player.mesh.position.x,
+            this.player.mesh.position.y + 0.65,
+            this.player.mesh.position.z
+        );
+        this.playerCollider.setFromCenterAndSize(this.playerColliderCenter, this.playerColliderSize);
 
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
@@ -289,8 +299,8 @@ export class Game3D {
         mesh.traverse?.(child => {
             if (!child.isMesh) return;
             child.geometry?.dispose?.();
-            if (Array.isArray(child.material)) child.material.forEach(m => m?.dispose?.());
-            else child.material?.dispose?.();
+            // Materiály tady nedisposujeme: část objektů používá sdílené materiály.
+            // Jejich dispose by po pár uklizených překážkách rozbil nové překážky.
         });
     }
 

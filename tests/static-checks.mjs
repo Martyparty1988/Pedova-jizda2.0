@@ -14,7 +14,7 @@ const audio = read('game-audio.js');
 assert.match(style, /#game-screen\.screen\.active\s*{[^}]*backdrop-filter:\s*none;/s, 'active game overlay must not blur the canvas');
 assert.match(style, /#game-screen\.screen\.active\s*{[^}]*-webkit-backdrop-filter:\s*none;/s, 'iOS Safari overlay blur must be disabled too');
 
-assert.equal(count(three, 'syncRenderResolution\\('), 2, 'Game3D should have one syncRenderResolution method plus one call');
+assert.equal(count(three, 'syncRenderResolution\\('), 3, 'Game3D should have one syncRenderResolution method and two calls');
 assert.equal(count(three, 'setupRuntimeViewportListeners\\('), 2, 'Game3D should have one viewport listener method plus one call');
 assert.match(three, /setFromCenterAndSize\(/, 'player collider should be explicit, not enlarged by the shield child mesh');
 assert.doesNotMatch(three, /this\.playerCollider\.setFromObject\(this\.player\.mesh\)/, 'player collider must not include invisible shield child');
@@ -22,7 +22,7 @@ assert.match(three, /const maxPixelRatio = this\.isMobile \? 2\.2 : 2;/, 'mobile
 
 assert.match(core, /updateSkills\(this\.gameState, delta\)/, 'GameCore must pass gameState into skill timer updates');
 assert.doesNotMatch(core, /updateSkills\(delta, null\)/, 'old updateSkills(delta, null) call should stay removed');
-assert.match(core, /this\.threeD\.clock\.getDelta\(\);\s*\n\s*}\s*\n}/s, 'pause toggle should reset clock delta to avoid time jumps');
+assert.match(core, /togglePause\(\)\s*{[\s\S]*this\.threeD\.clock\.getDelta\(\);[\s\S]*}/, 'pause toggle should reset clock delta to avoid time jumps');
 
 assert.match(logic, /invincibilityTimer = Math\.max\(0,/, 'invincibility timer must not go negative');
 assert.match(logic, /speedTimeouts/, 'speed powerup timeout cleanup must be tracked');

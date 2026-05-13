@@ -7,6 +7,7 @@ import { Environment } from './environment.js';
 import { GameObjectFactory } from './gameObjectFactory.js';
 
 const LANE_WIDTH = 4;
+const MAX_DELTA = 0.05;
 
 export class Game3D {
     constructor(options) {
@@ -16,17 +17,29 @@ export class Game3D {
         this.lastSpawnZ = 0;
         this.currentZone = 'aurora';
         this.zoneLength = 2000;
+        this.isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+            || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     }
 
     async init() {
+        const { width, height } = this.getViewportSize();
+
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 200);
+        this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 220);
         this.camera.position.set(0, 4, 10);
         this.clock = new THREE.Clock();
         this.playerCollider = new THREE.Box3();
         this.obstacleCollider = new THREE.Box3();
-        this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true, powerPreference: "high-performance" });
-        
+
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: this.canvas,
+            antialias: !this.isMobile,
+            alpha: true,
+            powerPreference: 'high-performance'
+        });
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
+        this.renderer.setClearColor(0x000000, 0);
+
         this.setupPostProcessing();
         this.syncRenderResolution();
         this.setupWorld();
@@ -35,21 +48,24 @@ export class Game3D {
     
     setupPostProcessing() {
         this.composer = new EffectComposer(this.renderer);
-        this.composer.addPass(new RenderPass(this.scene, this.camera));
+        this.renderPass = new RenderPass(this.scene, this.camera);
+        this.composer.addPass(this.renderPass);
 
-        // ZMĚNA #1: Můžeme vrátit rozumné hodnoty pro Bloom, protože teď bude fungovat správně
-        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.4, 0.85);
-        this.composer.addPass(bloomPass);
-
+        const { width, height } = this.getViewportSize();
+        const strength = this.isMobile ? 0.45 : 0.75;
+        const radius = this.isMobile ? 0.22 : 0.35;
+        const threshold = 0.9;
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), strength, radius, threshold);
+        this.composer.addPass(this.bloomPass);
     }
 
     setupWorld() {
         this.player = new Player();
-        this.environment = new Environment();
+        this.environment = new Environment({ mobile: this.isMobile });
         this.objectFactory = new GameObjectFactory();
         
-        this.scene.fog = new THREE.Fog(0x0D0E1B, 50, 130);
-        this.ambientLight = new THREE.AmbientLight(0x50609F, 3.8);
+        this.scene.fog = new THREE.Fog(0x0D0E1B, 50, 135);
+        this.ambientLight = new THREE.AmbientLight(0x50609F, 3.4);
         this.scene.add(this.ambientLight);
 
         this.scene.add(this.player.mesh);
@@ -65,23 +81,30 @@ export class Game3D {
     }
     
     reset() {
-        this.gameObjects.forEach(o => this.scene.remove(o.mesh));
+        this.gameObjects.forEach(o => this.disposeObject(o.mesh));
         this.gameObjects = [];
         this.lastSpawnZ = 0;
-        this.player.mesh.position.set(0, 0, 0);
+
+        this.player.mesh.position.set(0, -0.6, 0);
         this.player.mesh.visible = true;
-        this.camera.position.set(0, 4, 10);
-        this.camera.rotation.set(0, 0, 0);
-        this.player.mesh.rotation.set(0, 0, 0);
+        this.player.mesh.rotation.set(0.1, 0, 0);
         this.player.trickRotation = 0;
         this.player.frontFlipRotation = 0;
+
+        this.camera.position.set(0, 4, 10);
+        this.camera.rotation.set(0, 0, 0);
+
         this.currentZone = 'aurora';
         this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
+        this.clock.getDelta();
     }
     
     updateMenuBackground(delta) {
-        this.camera.position.z -= delta * 2;
-        this.camera.rotation.y += delta * 0.05;
+        const safeDelta = this.getSafeDelta(delta);
+        if (!this.environment || !this.camera) return;
+
+        this.camera.position.z -= safeDelta * 2;
+        this.camera.rotation.y += safeDelta * 0.05;
         this.camera.position.y = 2 + Math.sin(Date.now() * 0.0002) * 2;
         
         const camPos = this.camera.position;
@@ -89,44 +112,52 @@ export class Game3D {
         this.keyLight.target.position.set(camPos.x, camPos.y, camPos.z - 50);
         this.keyLight.target.updateMatrixWorld();
         
-        this.environment.update(delta * 2, this.camera.position);
-        this.composer.render();
+        this.environment.update(safeDelta * 2, this.camera.position);
+        this.render();
     }
     
     update(gameState, targetX, delta) {
+        const safeDelta = this.getSafeDelta(delta);
+        if (!this.player?.mesh || !gameState) return;
+
         this.player.mesh.position.y = gameState.playerY;
-        this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.15;
+        this.player.mesh.position.x += (targetX - this.player.mesh.position.x) * 0.18;
+
         if (!gameState.isDoingFrontFlip) {
+            this.player.mesh.rotation.x = 0.1;
             this.player.mesh.rotation.y = (this.player.mesh.position.x - targetX) * -0.1;
         }
-        this.player.update();
+
+        this.player.update(safeDelta);
 
         if (gameState.isDoingTrick) {
-            this.player.trickRotation += 15 * delta;
+            this.player.trickRotation += 15 * safeDelta;
             this.player.mesh.rotation.z = this.player.trickRotation;
             if (this.player.trickRotation >= Math.PI * 2) {
                 this.player.trickRotation = 0;
                 this.player.mesh.rotation.z = 0;
                 gameState.isDoingTrick = false;
             }
+        } else {
+            this.player.mesh.rotation.z *= 0.85;
         }
         
         if (gameState.isDoingFrontFlip) {
-            this.player.frontFlipRotation += 10 * delta;
-            this.player.mesh.rotation.x = this.player.frontFlipRotation;
+            this.player.frontFlipRotation += 10 * safeDelta;
+            this.player.mesh.rotation.x = 0.1 + this.player.frontFlipRotation;
             if (this.player.frontFlipRotation >= Math.PI * 2 && gameState.playerY <= -0.6) {
                 this.player.frontFlipRotation = 0;
-                this.player.mesh.rotation.x = 0;
+                this.player.mesh.rotation.x = 0.1;
                 gameState.isDoingFrontFlip = false;
             }
         }
 
-        const moveZ = gameState.speed * delta * (gameState.isDashing ? 3 : 1);
+        const moveZ = gameState.speed * safeDelta * (gameState.isDashing ? 3 : 1);
         this.player.mesh.position.z -= moveZ;
         
         const distance = Math.abs(this.player.mesh.position.z);
-        const zoneIndex = Math.floor(distance / this.zoneLength) % 3;
         const zones = ['aurora', 'sunset', 'matrix'];
+        const zoneIndex = Math.floor(distance / this.zoneLength) % zones.length;
         const newZone = zones[zoneIndex];
 
         if (newZone !== this.currentZone) {
@@ -134,7 +165,7 @@ export class Game3D {
             this.environment.setZone(this.currentZone, this.scene, this.ambientLight);
         }
 
-        const spawnThreshold = 600 / gameState.speed;
+        const spawnThreshold = Math.max(22, 600 / Math.max(gameState.speed, 1));
         this.lastSpawnZ += moveZ;
         while (this.lastSpawnZ >= spawnThreshold) {
             this.spawnObject();
@@ -146,22 +177,22 @@ export class Game3D {
         } else {
             this.player.mesh.visible = true;
         }
-        this.shield.visible = gameState.hasShield;
+
+        this.shield.visible = Boolean(gameState.hasShield);
         if (this.shield.visible) {
-            this.shield.rotation.y += delta;
-            this.shield.rotation.x += delta * 0.5;
+            this.shield.rotation.y += safeDelta;
+            this.shield.rotation.x += safeDelta * 0.5;
         }
 
         if (gameState.isDashing) this.player.activateBoost();
         else this.player.deactivateBoost();
 
         this.environment.update(moveZ, this.player.mesh.position);
-        this.updateGameObjects(delta);
-        this.checkCollisions(gameState);
+        this.updateGameObjects(safeDelta);
+        this.checkCollisions();
         this.cleanupObjects();
         this.updateCameraAndLights();
-        
-        this.composer.render();
+        this.render();
     }
     
     updateGameObjects(delta) {
@@ -171,6 +202,11 @@ export class Game3D {
                 if (Math.abs(obj.mesh.position.x) > LANE_WIDTH) {
                     obj.movement.direction *= -1;
                 }
+            }
+
+            if (obj.type?.startsWith('powerup') && obj.mesh.visible) {
+                obj.mesh.rotation.y += delta * 2.5;
+                obj.mesh.position.y = -0.35 + Math.sin(Date.now() * 0.004 + obj.mesh.position.z) * 0.12;
             }
         }
     }
@@ -215,13 +251,13 @@ export class Game3D {
         else if (rand < 0.95) newObject = this.objectFactory.createPowerup('shield', zPos);
         else newObject = this.objectFactory.createPowerup('life', zPos);
         
-        if (newObject.mesh) {
+        if (newObject?.mesh) {
             this.scene.add(newObject.mesh);
             this.gameObjects.push(newObject);
         }
     }
     
-    checkCollisions(gameState) {
+    checkCollisions() {
         if (!this.player.mesh.visible) return;
         this.playerCollider.setFromObject(this.player.mesh);
 
@@ -240,54 +276,50 @@ export class Game3D {
     cleanupObjects() {
         for (let i = this.gameObjects.length - 1; i >= 0; i--) {
             const obj = this.gameObjects[i];
-            if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 10) {
-                this.scene.remove(obj.mesh);
-                obj.mesh.traverse(child => {
-                    if (child.isMesh) {
-                        child.geometry.dispose();
-                        if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
-                        else if(child.material) child.material.dispose();
-                    }
-                });
+            if (obj.mesh && obj.mesh.position.z > this.camera.position.z + 14) {
+                this.disposeObject(obj.mesh);
                 this.gameObjects.splice(i, 1);
             }
         }
     }
 
+    disposeObject(mesh) {
+        if (!mesh) return;
+        this.scene?.remove(mesh);
+        mesh.traverse?.(child => {
+            if (!child.isMesh) return;
+            child.geometry?.dispose?.();
+            if (Array.isArray(child.material)) child.material.forEach(m => m?.dispose?.());
+            else child.material?.dispose?.();
+        });
+    }
+
     getViewportSize() {
         const viewport = window.visualViewport;
-        const fallbackWidth = this.canvas?.clientWidth || window.innerWidth;
-        const fallbackHeight = this.canvas?.clientHeight || window.innerHeight;
+        const fallbackWidth = this.canvas?.clientWidth || window.innerWidth || 1;
+        const fallbackHeight = this.canvas?.clientHeight || window.innerHeight || 1;
 
-        if (!viewport) {
-            return { width: fallbackWidth, height: fallbackHeight };
-        }
-
-        // visualViewport umí vracet desetinné hodnoty i při scroll/zoom změnách.
-        // Zaokrouhlení pomáhá vyhnout se rozmazání kvůli sub-pixel velikostem.
         return {
-            width: Math.round(viewport.width),
-            height: Math.round(viewport.height),
+            width: Math.max(1, Math.round(viewport?.width || fallbackWidth)),
+            height: Math.max(1, Math.round(viewport?.height || fallbackHeight)),
         };
     }
 
     getPixelRatio() {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
-            || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
         const viewportScale = window.visualViewport?.scale || 1;
         const baseRatio = (window.devicePixelRatio || 1) * viewportScale;
-
-        // iOS Safari vypadá s postprocessingem měkce při nízkém DPR.
-        // Na iPhonech dovolíme vyšší strop pro ostřejší výstup.
-        const maxPixelRatio = isIOS ? 3 : 2.5;
-        return Math.min(baseRatio, maxPixelRatio);
+        const maxPixelRatio = this.isMobile ? 2.2 : 2;
+        return Math.max(1, Math.min(baseRatio, maxPixelRatio));
     }
-
 
     syncRenderResolution() {
         const pixelRatio = this.getPixelRatio();
         const { width, height } = this.getViewportSize();
+
+        if (this.canvas) {
+            this.canvas.style.width = `${width}px`;
+            this.canvas.style.height = `${height}px`;
+        }
 
         if (this.renderer) {
             this.renderer.setPixelRatio(pixelRatio);
@@ -295,7 +327,7 @@ export class Game3D {
         }
 
         if (this.composer) {
-            this.composer.setPixelRatio(pixelRatio);
+            if (typeof this.composer.setPixelRatio === 'function') this.composer.setPixelRatio(pixelRatio);
             this.composer.setSize(width, height);
         }
     }
@@ -308,41 +340,12 @@ export class Game3D {
             this.viewportResizeRaf = requestAnimationFrame(() => this.onWindowResize());
         };
 
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', this.viewportResizeHandler);
-            window.visualViewport.addEventListener('scroll', this.viewportResizeHandler);
-        } else {
-            window.addEventListener('resize', this.viewportResizeHandler);
-            window.addEventListener('orientationchange', this.viewportResizeHandler);
-        }
-    }
-
-
-    syncRenderResolution() {
-        const pixelRatio = this.getPixelRatio();
-
-        if (this.renderer) {
-            this.renderer.setPixelRatio(pixelRatio);
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        if (this.composer) {
-            this.composer.setPixelRatio(pixelRatio);
-            this.composer.setSize(window.innerWidth, window.innerHeight);
-        }
-    }
-
-    setupRuntimeViewportListeners() {
-        if (this.viewportResizeHandler) return;
-
-        this.viewportResizeHandler = () => this.onWindowResize();
+        window.addEventListener('resize', this.viewportResizeHandler);
+        window.addEventListener('orientationchange', this.viewportResizeHandler);
 
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', this.viewportResizeHandler);
             window.visualViewport.addEventListener('scroll', this.viewportResizeHandler);
-        } else {
-            window.addEventListener('resize', this.viewportResizeHandler);
-            window.addEventListener('orientationchange', this.viewportResizeHandler);
         }
     }
 
@@ -350,8 +353,18 @@ export class Game3D {
         if (!this.camera || !this.renderer) return;
         const { width, height } = this.getViewportSize();
         if (!width || !height) return;
+
         this.camera.aspect = width / height;
         this.camera.updateProjectionMatrix();
         this.syncRenderResolution();
+    }
+
+    render() {
+        if (this.composer) this.composer.render();
+        else this.renderer?.render(this.scene, this.camera);
+    }
+
+    getSafeDelta(delta) {
+        return Number.isFinite(delta) && delta > 0 ? Math.min(delta, MAX_DELTA) : 1 / 60;
     }
 }

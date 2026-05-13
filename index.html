@@ -4,115 +4,80 @@
     <meta charset="UTF-8">
     <title>Pedrova jízda</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
-    <meta name="description" content="Procedurální underground runner v pražských stokách.">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0D0E1B">
+    <meta name="description" content="Rychlá neonová runner hra optimalizovaná pro iPhone.">
+    <meta name="theme-color" content="#070812">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Pedrova jízda">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180x180.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512x512.png">
+    <link rel="manifest" href="manifest.json">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="collision-flash"></div>
-    <canvas id="game-canvas"></canvas>
+    <canvas id="game-canvas" aria-label="Pedrova jízda"></canvas>
+    <div id="flash"></div>
 
-    <div id="main-menu" class="screen active">
-        <div class="ui-panel">
-            <h1 class="title">Pedrova jízda</h1>
-            <p class="subtitle">Absťák je jen začátek. Cesta nikdy nekončí.</p>
-            <div id="menu-loading-container" class="menu-loading-container">
-                <div class="loading-spinner" id="menu-loading-spinner"></div>
-                <div class="loading-text" id="menu-loading-text"></div>
+    <section id="main-menu" class="screen active">
+        <div class="brand-card">
+            <div class="eyebrow">NEON RUNNER</div>
+            <h1>Pedrova<br>jízda</h1>
+            <p>Profesionální mobilní runner. Tři pruhy, rychlost, combo, štíty a čistý iPhone výkon.</p>
+            <button id="play-btn" class="primary-btn">Start jízdy</button>
+            <div class="hint-row">
+                <span>Swipe = pruh</span>
+                <span>Tap = skok</span>
+                <span>Dolů = boost</span>
             </div>
-            <button class="action-btn" id="play-btn" disabled>
-                <span>💉 DÁT SI</span>
-            </button>
         </div>
-    </div>
+    </section>
 
-    <div id="game-screen" class="screen">
-        <div class="game-hud">
-            <div class="hud-left">
-                <div class="hud-score" id="current-score">0</div>
-                <div class="lives-container" id="lives-container"></div>
+    <section id="game-screen" class="screen game-layer">
+        <header class="hud">
+            <div class="hud-block">
+                <span class="hud-label">Skóre</span>
+                <strong id="current-score">0</strong>
             </div>
             <div class="hud-center">
-                <div id="combo-display" class="combo-display"></div>
-                <div id="near-miss-popup" class="near-miss-popup"></div>
+                <div id="combo-display" class="combo">x1</div>
+                <div id="near-miss-popup" class="near-miss">Near miss</div>
             </div>
-            <div class="hud-right">
-                <button id="pause-btn">||</button>
+            <div class="hud-block right">
+                <span class="hud-label">Životy</span>
+                <div id="lives-container" class="lives"></div>
             </div>
-        </div>
+            <button id="pause-btn" class="pause-btn" aria-label="Pauza">Ⅱ</button>
+        </header>
 
-        <div class="dash-cooldown-track">
-            <div id="dash-cooldown-bar" class="dash-cooldown-bar ready"></div>
-        </div>
+        <div class="boost-track"><div id="dash-cooldown-bar" class="boost-bar ready"></div></div>
 
-        <div class="ctrl-row">
-            <button id="ctrl-left" class="ctrl-btn ctrl-side">◀</button>
-            <button id="ctrl-jump" class="ctrl-btn ctrl-center">▲<span class="ctrl-label">SKOK</span></button>
-            <button id="ctrl-dash" class="ctrl-btn ctrl-center ctrl-dash-btn">⚡<span class="ctrl-label">DASH</span></button>
-            <button id="ctrl-right" class="ctrl-btn ctrl-side">▶</button>
-        </div>
-    </div>
+        <nav class="controls" aria-label="Ovládání">
+            <button id="ctrl-left" class="ctrl-btn">◀</button>
+            <button id="ctrl-jump" class="ctrl-btn main">▲<small>SKOK</small></button>
+            <button id="ctrl-dash" class="ctrl-btn main boost">⚡<small>BOOST</small></button>
+            <button id="ctrl-right" class="ctrl-btn">▶</button>
+        </nav>
+    </section>
 
-    <div id="game-over" class="screen">
-        <div class="ui-panel game-over-content">
-            <h2 class="title game-over-title">JÍZDA SKONČILA</h2>
-            <p id="game-over-quote" class="subtitle game-over-quote"></p>
-            
-            <div class="final-score-container">
-                <div class="final-score-label">FINÁLNÍ SKÓRE</div>
-                <div class="final-score" id="final-score">0</div>
-            </div>
-
+    <section id="game-over" class="screen">
+        <div class="brand-card compact">
+            <div class="eyebrow danger">RUN COMPLETE</div>
+            <h2>Jízda<br>skončila</h2>
+            <div class="final-score" id="final-score">0</div>
             <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-label">Nejlepší jízda</div>
-                    <div class="stat-value" id="best-score">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Čas</div>
-                    <div class="stat-value" id="game-time">0s</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Skoky</div>
-                    <div class="stat-value" id="stat-jumps">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Dashe</div>
-                    <div class="stat-value" id="stat-dashes">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Near miss</div>
-                    <div class="stat-value" id="stat-nearMisses">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Max combo</div>
-                    <div class="stat-value" id="stat-maxCombo">x1</div>
-                </div>
+                <div><span>Best</span><strong id="best-score">0</strong></div>
+                <div><span>Čas</span><strong id="game-time">0s</strong></div>
+                <div><span>Skoky</span><strong id="stat-jumps">0</strong></div>
+                <div><span>Boost</span><strong id="stat-dashes">0</strong></div>
+                <div><span>Near miss</span><strong id="stat-nearMisses">0</strong></div>
+                <div><span>Combo</span><strong id="stat-maxCombo">x1</strong></div>
             </div>
-
-            <div class="menu-buttons">
-                <button class="action-btn" id="restart-btn">🔄 Nová Jízda</button>
-                <button class="action-btn" id="menu-btn">🏠 Hlavní Menu</button>
-            </div>
+            <button id="restart-btn" class="primary-btn">Nová jízda</button>
+            <button id="menu-btn" class="ghost-btn">Menu</button>
         </div>
-    </div>
+    </section>
 
-    <div id="webgl-fallback" class="screen">
-        <div class="ui-panel">
-            <h2 class="title">Motor selhal</h2>
-            <p class="subtitle">Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
-        </div>
-    </div>
-
-    <script type="module" src="main.js"></script>
+    <script src="main.js" defer></script>
 </body>
 </html>

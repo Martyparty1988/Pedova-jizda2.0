@@ -80,7 +80,9 @@ test('powerups update state and hide collected mesh', () => {
 
   const baseSpeed = state.baseSpeed;
   assert.equal(logic.collectPowerup(state, 2, gameObjects), 'speed');
-  assert.equal(state.baseSpeed, baseSpeed + 1);
+  assert.equal(state.baseSpeed, baseSpeed + 1.5);
+
+  logic.resetSkills();
 });
 
 test('final stats save numeric best score', () => {

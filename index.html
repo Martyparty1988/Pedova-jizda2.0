@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="cs">
 <head>
     <meta charset="UTF-8">
@@ -18,71 +19,107 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    
-    <div id="collision-flash"></div>
-    <canvas id="game-canvas"></canvas>
 
-    <div id="main-menu" class="screen active">
-        <div class="ui-panel">
-            <h1 class="title">Pedrova jízda</h1>
-            <p class="subtitle">Absťák je jen začátek. Cesta nikdy nekončí.</p>
-            <div id="menu-loading-container" class="menu-loading-container">
-                <div class="loading-spinner" id="menu-loading-spinner"></div>
-                <div class="loading-text" id="menu-loading-text"></div>
-            </div>
-            <button class="action-btn" id="play-btn" disabled>
-                <span>💉 DÁT SI</span>
-            </button>
+```
+<div id="collision-flash"></div>
+<canvas id="game-canvas"></canvas>
+
+<div id="main-menu" class="screen active">
+    <div class="ui-panel">
+        <h1 class="title">Pedrova jízda</h1>
+        <p class="subtitle">Absťák je jen začátek. Cesta nikdy nekončí.</p>
+        <div id="menu-loading-container" class="menu-loading-container">
+            <div class="loading-spinner" id="menu-loading-spinner"></div>
+            <div class="loading-text" id="menu-loading-text"></div>
+        </div>
+        <button class="action-btn" id="play-btn" disabled>
+            <span>💉 DÁT SI</span>
+        </button>
+    </div>
+</div>
+
+<div id="game-screen" class="screen">
+    <div class="game-hud">
+        <div class="hud-left">
+            <div class="hud-score" id="current-score">0</div>
+            <div class="lives-container" id="lives-container"></div>
+        </div>
+        <div class="hud-center">
+            <div id="combo-display" class="combo-display"></div>
+            <div id="near-miss-popup" class="near-miss-popup"></div>
+        </div>
+        <div class="hud-right">
+            <button id="pause-btn">||</button>
         </div>
     </div>
 
-    <div id="game-screen" class="screen">
-        <div class="game-hud">
-            <div class="hud-left">
-                <div class="hud-score" id="current-score">0</div>
-                <div class="lives-container" id="lives-container"></div>
-            </div>
-            <div class="hud-right">
-                <button id="pause-btn">||</button>
-            </div>
-        </div>
+    <!-- Dash cooldown bar -->
+    <div class="dash-cooldown-track">
+        <div id="dash-cooldown-bar" class="dash-cooldown-bar ready"></div>
     </div>
 
-    <div id="game-over" class="screen">
-        <div class="ui-panel game-over-content">
-            <h2 class="title game-over-title">JÍZDA SKONČILA</h2>
-            <p id="game-over-quote" class="subtitle game-over-quote"></p>
-            
-            <div class="final-score-container">
-                <div class="final-score-label">FINÁLNÍ SKÓRE</div>
-                <div class="final-score" id="final-score">0</div>
-            </div>
+    <!-- On-screen tlačítka -->
+    <div class="ctrl-row">
+        <button id="ctrl-left"  class="ctrl-btn ctrl-side">◀</button>
+        <button id="ctrl-jump"  class="ctrl-btn ctrl-center">▲<span class="ctrl-label">SKOK</span></button>
+        <button id="ctrl-dash"  class="ctrl-btn ctrl-center ctrl-dash-btn">⚡<span class="ctrl-label">DASH</span></button>
+        <button id="ctrl-right" class="ctrl-btn ctrl-side">▶</button>
+    </div>
+</div>
 
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <div class="stat-label">Nejlepší jízda</div>
-                    <div class="stat-value" id="best-score">0</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Čas</div>
-                    <div class="stat-value" id="game-time">0s</div>
-                </div>
-            </div>
+<div id="game-over" class="screen">
+    <div class="ui-panel game-over-content">
+        <h2 class="title game-over-title">JÍZDA SKONČILA</h2>
+        <p id="game-over-quote" class="subtitle game-over-quote"></p>
+        
+        <div class="final-score-container">
+            <div class="final-score-label">FINÁLNÍ SKÓRE</div>
+            <div class="final-score" id="final-score">0</div>
+        </div>
 
-            <div class="menu-buttons">
-                <button class="action-btn" id="restart-btn">🔄 Nová Jízda</button>
-                <button class="action-btn" id="menu-btn">🏠 Hlavní Menu</button>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">Nejlepší jízda</div>
+                <div class="stat-value" id="best-score">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Čas</div>
+                <div class="stat-value" id="game-time">0s</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Skoky</div>
+                <div class="stat-value" id="stat-jumps">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Dashe</div>
+                <div class="stat-value" id="stat-dashes">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Near miss</div>
+                <div class="stat-value" id="stat-nearMisses">0</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Max combo</div>
+                <div class="stat-value" id="stat-maxCombo">x1</div>
             </div>
         </div>
-    </div>
 
-    <div id="webgl-fallback" class="screen">
-        <div class="ui-panel">
-            <h2 class="title">Motor selhal</h2>
-            <p class="subtitle">Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
+        <div class="menu-buttons">
+            <button class="action-btn" id="restart-btn">🔄 Nová Jízda</button>
+            <button class="action-btn" id="menu-btn">🏠 Hlavní Menu</button>
         </div>
     </div>
+</div>
 
-    <script type="module" src="main.js"></script>
+<div id="webgl-fallback" class="screen">
+    <div class="ui-panel">
+        <h2 class="title">Motor selhal</h2>
+        <p class="subtitle">Tvoje stará plečka (prohlížeč) to nedává. WebGL je pro tenhle trip potřeba.</p>
+    </div>
+</div>
+
+<script type="module" src="main.js"></script>
+```
+
 </body>
 </html>

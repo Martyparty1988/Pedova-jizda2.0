@@ -231,3 +231,153 @@ body::before {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+
+/* ── COMBO DISPLAY ─────────────────────────────────── */
+.hud-center {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    top: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+}
+
+.combo-display {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--combo-color, #ffffff);
+    text-shadow: 0 0 12px var(--combo-color, #fff), 0 0 28px var(--combo-color, #fff);
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.2s, transform 0.2s;
+    letter-spacing: 2px;
+}
+.combo-display.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ── NEAR MISS POPUP ───────────────────────────────── */
+.near-miss-popup {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffdd00;
+    text-shadow: 0 0 10px #ffaa00;
+    opacity: 0;
+    transform: translateY(0);
+    transition: none;
+    pointer-events: none;
+}
+.near-miss-popup.show {
+    animation: nearMissPop 0.9s ease-out forwards;
+}
+@keyframes nearMissPop {
+    0%   { opacity: 1; transform: translateY(0) scale(1.2); }
+    60%  { opacity: 1; transform: translateY(-18px) scale(1); }
+    100% { opacity: 0; transform: translateY(-30px); }
+}
+
+/* ── DASH COOLDOWN BAR ─────────────────────────────── */
+.dash-cooldown-track {
+    position: absolute;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80px;
+    height: 4px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+    pointer-events: none;
+}
+.dash-cooldown-bar {
+    height: 100%;
+    width: 0%;
+    background: #888;
+    border-radius: 2px;
+    transition: width 0.1s linear, background 0.3s;
+}
+.dash-cooldown-bar.ready {
+    background: #00ffff;
+    box-shadow: 0 0 6px #00ffff;
+    width: 100%;
+}
+
+/* ── ON-SCREEN CONTROLS ────────────────────────────── */
+.ctrl-row {
+    position: absolute;
+    bottom: 18px;
+    left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 0 12px;
+    pointer-events: none;
+    gap: 8px;
+}
+
+.ctrl-btn {
+    pointer-events: all;
+    background: rgba(0, 220, 255, 0.08);
+    border: 1px solid rgba(0, 220, 255, 0.35);
+    color: rgba(0, 220, 255, 0.9);
+    border-radius: 14px;
+    font-size: 1.3rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    transition: background 0.1s, transform 0.1s;
+    backdrop-filter: blur(4px);
+}
+.ctrl-btn:active {
+    background: rgba(0, 220, 255, 0.25);
+    transform: scale(0.93);
+}
+
+.ctrl-side {
+    width: 68px;
+    height: 60px;
+    font-size: 1.5rem;
+}
+
+.ctrl-center {
+    flex: 1;
+    height: 60px;
+    max-width: 110px;
+    font-size: 1.1rem;
+}
+
+.ctrl-dash-btn {
+    border-color: rgba(180, 80, 255, 0.45);
+    color: rgba(180, 80, 255, 0.9);
+    background: rgba(140, 0, 255, 0.08);
+}
+.ctrl-dash-btn:active {
+    background: rgba(140, 0, 255, 0.25);
+}
+
+.ctrl-label {
+    font-size: 0.55rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    display: block;
+}
+
+/* ── STATS GRID – 3 sloupce ────────────────────────── */
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin: 16px 0;
+}

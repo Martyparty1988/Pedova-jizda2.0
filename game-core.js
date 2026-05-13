@@ -6,8 +6,8 @@ import { GameAudio } from './game-audio.js';
 const GRAVITY = -30;
 const JUMP_FORCE = 10;
 const LANE_WIDTH = 4;
+const MAX_DELTA = 0.05;
 
-// ZMĚNA: Přidáno klíčové slovo 'export', aby bylo možné třídu importovat v main.js
 export class GameCore {
     constructor() {
         this.ui = new GameUI();
@@ -22,6 +22,7 @@ export class GameCore {
         this.animationFrame = null;
         this.touchStart = null;
         this.menuAnimationFrame = null;
+        this.dashTimeout = null;
 
         this.lastSwipeUpTime = 0;
         this.lastJumpKeyPressTime = 0;
@@ -36,21 +37,21 @@ export class GameCore {
         const playBtn = this.ui.elements['play-btn'];
 
         try {
-            menuLoadingText.textContent = 'Načítám 3D scénu...';
+            if (menuLoadingText) menuLoadingText.textContent = 'Načítám 3D scénu...';
             await this.threeD.init();
             
-            menuLoadingText.textContent = 'Inicializuji audio...';
+            if (menuLoadingText) menuLoadingText.textContent = 'Inicializuji audio...';
             this.audio.init();
 
             this.setupEventListeners();
             this.logic.loadStats(this.ui.elements);
 
-            menuLoadingContainer.style.display = 'none';
-            playBtn.disabled = false;
+            if (menuLoadingContainer) menuLoadingContainer.style.display = 'none';
+            if (playBtn) playBtn.disabled = false;
             
             this.menuLoop();
         } catch (error) {
-            console.error("Fatální chyba při inicializaci hry:", error);
+            console.error('Fatální chyba při inicializaci hry:', error);
             this.ui.showScreen('webgl-fallback');
         }
     }
@@ -58,28 +59,38 @@ export class GameCore {
     setupEventListeners() {
         const addListener = (id, event, handler) => {
             const element = this.ui.elements[id];
-            if (element) {
-                element.addEventListener(event, handler);
-            }
+            if (element) element.addEventListener(event, handler);
         };
 
         addListener('play-btn', 'click', () => this.startGame());
         addListener('restart-btn', 'click', () => this.startGame());
-        addListener('menu-btn', 'click', () => {
-            this.ui.showScreen('main-menu');
-            if (this.threeD.player) this.threeD.player.mesh.visible = false;
-            this.menuLoop();
-        });
+        addListener('menu-btn', 'click', () => this.returnToMenu());
         addListener('pause-btn', 'click', () => this.togglePause());
 
         window.addEventListener('resize', () => this.threeD.onWindowResize());
         window.addEventListener('keydown', (e) => this.handleInput('keydown', e));
+        window.addEventListener('blur', () => {
+            if (this.gameState?.isPlaying && !this.gameState.isPaused) this.togglePause();
+        });
 
         const canvas = this.ui.elements['game-canvas'];
         if (canvas) {
             canvas.addEventListener('touchstart', (e) => this.handleInput('touchstart', e), { passive: false });
             canvas.addEventListener('touchend', (e) => this.handleInput('touchend', e), { passive: false });
+            canvas.addEventListener('touchcancel', () => { this.touchStart = null; }, { passive: true });
         }
+    }
+
+    returnToMenu() {
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
+        this.gameState = null;
+        this.ui.showScreen('main-menu');
+        if (this.threeD.player) this.threeD.player.mesh.visible = false;
+        this.threeD.clock.getDelta();
+        this.menuLoop();
     }
 
     startGame() {
@@ -87,24 +98,39 @@ export class GameCore {
             cancelAnimationFrame(this.menuAnimationFrame);
             this.menuAnimationFrame = null;
         }
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
+        if (this.dashTimeout) {
+            clearTimeout(this.dashTimeout);
+            this.dashTimeout = null;
+        }
         
         this.audio.resumeContext();
+        this.logic.resetSkills();
         this.gameState = this.logic.getInitialGameState();
         this.gameState.isDoingTrick = false; 
         this.gameState.isDoingFrontFlip = false;
-        this.logic.resetSkills();
+        this.touchStart = null;
+        this.lastSwipeUpTime = 0;
+        this.lastJumpKeyPressTime = 0;
+
         this.threeD.reset();
         this.ui.showScreen('game-screen');
+        this.ui.updateScore(0);
         this.ui.updateLives(this.gameState.lives);
+        this.ui.togglePause(false);
         
-        if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
+        this.threeD.clock.getDelta();
         this.gameLoop();
     }
     
     menuLoop() {
+        if (!this.ui.elements['main-menu']?.classList.contains('active')) return;
         if (this.menuAnimationFrame) cancelAnimationFrame(this.menuAnimationFrame);
         this.menuAnimationFrame = requestAnimationFrame(() => this.menuLoop());
-        const delta = this.threeD.clock.getDelta();
+        const delta = Math.min(this.threeD.clock.getDelta(), MAX_DELTA);
         this.threeD.updateMenuBackground(delta);
     }
     
@@ -113,23 +139,28 @@ export class GameCore {
         this.animationFrame = requestAnimationFrame(() => this.gameLoop());
         if (this.gameState.isPaused) return;
 
-        const delta = this.threeD.clock.getDelta();
+        const delta = Math.min(this.threeD.clock.getDelta(), MAX_DELTA);
         this.update(delta);
     }
 
     update(delta) {
+        if (!this.gameState) return;
         this.logic.updateScore(this.gameState, delta);
-        this.ui.updateScore(this.gameState.score);
+        this.ui.updateScore(Math.floor(this.gameState.score));
         this.logic.updatePlayerVerticalPosition(this.gameState, delta, GRAVITY);
-        this.logic.updateSkills(delta, null);
+        this.logic.updateSkills(this.gameState, delta);
 
         const targetX = (this.gameState.lane - 1) * LANE_WIDTH;
         this.threeD.update(this.gameState, targetX, delta);
     }
 
     handleCollision(type, index) {
+        if (!this.gameState || !this.gameState.isPlaying) return;
+
         if (type.startsWith('powerup')) {
             const powerupType = this.logic.collectPowerup(this.gameState, index, this.threeD.gameObjects);
+            if (!powerupType) return;
+
             if (powerupType === 'life' || powerupType === 'shield') {
                 this.ui.updateLives(this.gameState.lives);
                 this.audio.playSound('powerup_shield');
@@ -143,27 +174,32 @@ export class GameCore {
             if (this.logic.consumeShield(this.gameState)) {
                 this.audio.playSound('shield_break');
                 this.threeD.triggerShieldBreakEffect();
-                if(this.threeD.gameObjects[index]) this.threeD.gameObjects[index].mesh.visible = false;
+                if (this.threeD.gameObjects[index]?.mesh) this.threeD.gameObjects[index].mesh.visible = false;
                 this.gameState.invincibilityTimer = 1000;
             } else {
-                document.getElementById('collision-flash').classList.add('flash');
-                setTimeout(() => document.getElementById('collision-flash').classList.remove('flash'), 500);
+                const flash = document.getElementById('collision-flash');
+                if (flash) {
+                    flash.classList.add('flash');
+                    setTimeout(() => flash.classList.remove('flash'), 500);
+                }
                 this.audio.vibrate([100, 50, 100]);
                 this.audio.playSound('collision');
 
                 const isGameOver = this.logic.handlePlayerHit(this.gameState);
                 this.ui.updateLives(this.gameState.lives);
                 
-                if (isGameOver) {
-                    this.gameOver();
-                }
+                if (isGameOver) this.gameOver();
             }
         }
     }
 
     gameOver() {
-        if (!this.gameState.isPlaying) return;
+        if (!this.gameState?.isPlaying) return;
         this.gameState.isPlaying = false;
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
         
         const finalStats = this.logic.getFinalStats(this.gameState);
         this.logic.saveStats(finalStats);
@@ -175,46 +211,74 @@ export class GameCore {
 
         if (type === 'touchstart') {
             event.preventDefault();
-            this.touchStart = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+            const touch = event.touches?.[0];
+            if (!touch) return;
+            this.touchStart = { x: touch.clientX, y: touch.clientY };
         } else if (type === 'touchend') {
             event.preventDefault();
             if (!this.touchStart) return;
-            const dx = event.changedTouches[0].clientX - this.touchStart.x;
-            const dy = event.changedTouches[0].clientY - this.touchStart.y;
-            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
+            const touch = event.changedTouches?.[0];
+            if (!touch) return;
+
+            const dx = touch.clientX - this.touchStart.x;
+            const dy = touch.clientY - this.touchStart.y;
+            const absX = Math.abs(dx);
+            const absY = Math.abs(dy);
+
+            if (absX > absY && absX > 30) {
                 this.gameState.lane = Math.max(0, Math.min(2, this.gameState.lane + (dx > 0 ? 1 : -1)));
-            } else if (Math.abs(dy) > 30) {
-                if (dy < 0) {
-                    const now = Date.now();
-                    if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
-                        this.doSuperJump();
-                        this.lastSwipeUpTime = 0;
-                    } else {
-                        this.doJump();
-                    }
-                    this.lastSwipeUpTime = now;
-                } else {
-                    this.doDash();
-                }
+            } else if (absY > 30) {
+                if (dy < 0) this.handleJumpGesture();
+                else this.doDash();
             }
             this.touchStart = null;
         } else if (type === 'keydown') {
             switch (event.code) {
-                case 'ArrowLeft': case 'KeyA': this.gameState.lane = Math.max(0, this.gameState.lane - 1); break;
-                case 'ArrowRight': case 'KeyD': this.gameState.lane = Math.min(2, this.gameState.lane + 1); break;
-                case 'ArrowUp': case 'KeyW': case 'Space': 
-                    event.preventDefault();
-                    const now = Date.now();
-                    if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
-                        this.doSuperJump();
-                        this.lastJumpKeyPressTime = 0;
-                    } else {
-                        this.doJump();
-                    }
-                    this.lastJumpKeyPressTime = now;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    this.gameState.lane = Math.max(0, this.gameState.lane - 1);
                     break;
-                case 'ArrowDown': case 'KeyS': event.preventDefault(); this.doDash(); break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    this.gameState.lane = Math.min(2, this.gameState.lane + 1);
+                    break;
+                case 'ArrowUp':
+                case 'KeyW':
+                case 'Space':
+                    event.preventDefault();
+                    this.handleJumpKey();
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    event.preventDefault();
+                    this.doDash();
+                    break;
+                case 'Escape':
+                    this.togglePause();
+                    break;
             }
+        }
+    }
+
+    handleJumpGesture() {
+        const now = Date.now();
+        if (now - this.lastSwipeUpTime < this.doubleTapDelay) {
+            this.doSuperJump();
+            this.lastSwipeUpTime = 0;
+        } else {
+            this.doJump();
+            this.lastSwipeUpTime = now;
+        }
+    }
+
+    handleJumpKey() {
+        const now = Date.now();
+        if (now - this.lastJumpKeyPressTime < this.doubleTapDelay) {
+            this.doSuperJump();
+            this.lastJumpKeyPressTime = 0;
+        } else {
+            this.doJump();
+            this.lastJumpKeyPressTime = now;
         }
     }
 
@@ -247,12 +311,18 @@ export class GameCore {
 
     doDash() {
         if (this.logic.canDash(this.gameState)) {
+            const stateAtDashStart = this.gameState;
             this.audio.vibrate(75);
-            this.gameState.isDashing = true;
+            stateAtDashStart.isDashing = true;
             this.logic.activateSkill('dash');
-            this.gameState.runStats.dashes++;
+            stateAtDashStart.runStats.dashes++;
             this.audio.playSound('dash');
-            setTimeout(() => this.gameState.isDashing = false, 300);
+
+            if (this.dashTimeout) clearTimeout(this.dashTimeout);
+            this.dashTimeout = setTimeout(() => {
+                if (this.gameState === stateAtDashStart) stateAtDashStart.isDashing = false;
+                this.dashTimeout = null;
+            }, 300);
         }
     }
 
@@ -260,7 +330,6 @@ export class GameCore {
         if (!this.gameState || !this.gameState.isPlaying) return;
         this.gameState.isPaused = !this.gameState.isPaused;
         this.ui.togglePause(this.gameState.isPaused);
+        this.threeD.clock.getDelta();
     }
 }
-
-// ZMĚNA: Odstraněno `new GameCore();` z konce souboru.

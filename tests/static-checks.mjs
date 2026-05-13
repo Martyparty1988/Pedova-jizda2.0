@@ -4,6 +4,26 @@ import { readFileSync } from 'node:fs';
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const count = (text, pattern) => (text.match(new RegExp(pattern, 'g')) || []).length;
 
+const runtimeFiles = [
+  'index.html',
+  'main.js',
+  'game-core.js',
+  'game-ui.js',
+  'game-logic.js',
+  'game-3d.js',
+  'player.js',
+  'environment.js',
+  'gameObjectFactory.js',
+  'game-audio.js',
+  'game-assets.js'
+];
+
+for (const file of runtimeFiles) {
+  const text = read(file);
+  assert.doesNotMatch(text, /```/, `${file} must not contain markdown code fences`);
+  assert.doesNotMatch(text, /[‘’]/, `${file} must not contain curly JS quote characters`);
+}
+
 const style = read('style.css');
 const core = read('game-core.js');
 const logic = read('game-logic.js');

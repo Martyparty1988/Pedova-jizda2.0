@@ -289,6 +289,8 @@ update(delta = 1 / 60) {
     this.animationTime += safeDelta;
     const t = this.animationTime;
 
+    // Výšku hráče řídí GameLogic kvůli skoku a kolizím – tady Y nepřepisujeme.
+
     // Board hover – jemné vznášení
     if (this.boardGroup) {
         this.boardGroup.position.y = Math.sin(t * 2.2) * 0.1;
